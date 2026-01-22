@@ -39,14 +39,27 @@ Plataforma de arquitetura de soluções AI-first que permite:
 
 | Camada | Tecnologia |
 |--------|------------|
-| Landing | Next.js + Tailwind (deploy Vercel) |
+| Landing | Next.js + Tailwind (S3 + CloudFront) |
 | Frontend | Next.js 15 + React 19 + Tailwind 4 |
 | UI | shadcn/ui (tema Kuramei) |
 | Diagramas | React Flow (customizado) |
-| Backend | Python + FastAPI |
-| Database | SQLite → PostgreSQL |
+| Backend | Python + FastAPI (ECS Fargate) |
+| Database | RDS Aurora Serverless (PostgreSQL) |
 | IA | Multi-provider (OpenAI, Anthropic, Ollama) |
-| Deploy | Docker (cloud-agnostic) |
+| Secrets | AWS Secrets Manager |
+| CDN | CloudFront |
+| DNS | Route 53 (kuramei.ai) |
+| IaC | Terraform |
+
+### Infraestrutura 100% AWS
+
+Decisão estratégica: usar AWS para todo o projeto.
+
+**Razões:**
+- Prática real para certificação AWS SA Professional
+- Credibilidade: projeto de arquitetura cloud rodando em cloud
+- Meta: exporta Terraform, provisionado por Terraform
+- Evidência de expertise para EB2-NIW
 
 ---
 
@@ -100,6 +113,10 @@ kuramei/
 │   ├── guardrails.md   # Checklist de implementação
 │   ├── rules/          # Regras específicas
 │   └── memory/         # Decisões e sessões
+├── infra/              # Terraform (IaC)
+│   ├── main.tf
+│   ├── modules/        # networking, ecs, rds, cdn
+│   └── environments/   # dev, prod
 ├── landing/            # Landing page (kuramei.ai)
 │   ├── src/
 │   └── package.json

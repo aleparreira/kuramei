@@ -489,13 +489,108 @@ Como estruturar a landing page considerando dois publicos:
 
 ---
 
+## ADR-014: Infraestrutura 100% AWS
+
+**Status**: Aceito
+**Data**: 2026-01-22
+
+### Contexto
+
+Definir onde deployar o Kuramei, considerando:
+1. Criador estudando para AWS SA Professional
+2. Projeto de arquitetura cloud deve rodar em cloud real
+3. Oportunidade de aprendizado prático
+4. Evidência de expertise AWS para EB2-NIW
+
+### Decisao
+
+**100% AWS** para toda infraestrutura do Kuramei.
+
+### Stack AWS
+
+| Componente | Servico AWS |
+|------------|-------------|
+| DNS | Route 53 |
+| CDN | CloudFront |
+| Landing | S3 + CloudFront |
+| Backend | ECS Fargate |
+| Database | RDS Aurora Serverless (PostgreSQL) |
+| Secrets | Secrets Manager |
+| Assets | S3 |
+| Logs | CloudWatch |
+| Networking | VPC + ALB |
+
+### Razoes
+
+1. **Certificação**: Prática real com serviços do exame SA Professional
+2. **Credibilidade**: "Arquiteto cloud usando cloud real"
+3. **Pricing API**: Já precisa de AWS para estimativas de custo
+4. **EB2-NIW**: Demonstra profundidade em AWS
+5. **Meta**: Projeto que exporta Terraform rodando em infra Terraform
+
+### Serviços AWS cobertos (relevantes para SA Pro)
+
+- Compute: ECS Fargate
+- Database: RDS Aurora
+- Storage: S3
+- Networking: CloudFront, Route 53, VPC, ALB
+- Security: IAM, Secrets Manager
+- Monitoring: CloudWatch
+
+### Consequencias
+
+- Custo mensal estimado: $50-100 (Aurora Serverless + Fargate)
+- Curva de aprendizado: maior que Railway/Vercel
+- Benefício: prática real para certificação
+
+---
+
+## ADR-015: Terraform para IaC
+
+**Status**: Aceito
+**Data**: 2026-01-22
+
+### Contexto
+
+Kuramei exporta Terraform. Faz sentido usar Terraform para provisionar a própria infra.
+
+### Decisao
+
+Usar **Terraform** para provisionar toda infraestrutura AWS do Kuramei.
+
+### Estrutura
+
+```
+kuramei/
+├── infra/                    # Terraform
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── modules/
+│   │   ├── networking/
+│   │   ├── ecs/
+│   │   ├── rds/
+│   │   └── cdn/
+│   └── environments/
+│       ├── dev/
+│       └── prod/
+```
+
+### Razoes
+
+1. **Meta-consistência**: Projeto que exporta Terraform usa Terraform
+2. **Documentação viva**: Infra como código = documentação
+3. **Reprodutibilidade**: Qualquer pessoa pode deployar
+4. **Aprendizado**: Prática de IaC para certificação
+
+---
+
 ## Decisoes Pendentes
 
 | ID | Topico | Status |
 |----|--------|--------|
-| ADR-014 | Provider LLM (OpenAI vs Anthropic vs Ollama) | Pendente |
-| ADR-015 | Estrategia de deploy app (Vercel + Railway vs outro) | Pendente |
-| ADR-016 | Autenticacao MVP (none vs basic vs OAuth) | Pendente |
+| ADR-016 | Provider LLM (OpenAI vs Anthropic vs Ollama) | Pendente |
+| ADR-017 | Autenticacao MVP (none vs basic vs Cognito) | Pendente |
 
 ---
 
