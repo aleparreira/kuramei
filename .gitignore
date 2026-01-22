@@ -42,5 +42,7 @@ htmlcov/
 # Flow (local)
 .flow/
 
-# Claude (local settings)
+# Claude (local dev - keep decisions.md versioned)
+.claude/memory/session.md
+.claude/memory/archive/
 .claude/settings.local.json
