@@ -390,13 +390,112 @@ Onde hospedar codigo e documentacao?
 
 ---
 
+## ADR-011: Dominio kuramei.ai
+
+**Status**: Aceito
+**Data**: 2026-01-22
+
+### Contexto
+
+Definir dominio principal do projeto.
+
+### Decisao
+
+Usar **kuramei.ai** (em vez de kuramei.com).
+
+### Razoes
+
+1. `.ai` comunica posicionamento AI-first
+2. Mais memoravel para o publico-alvo (arquitetos, CTOs)
+3. Diferenciacao no mercado
+
+---
+
+## ADR-012: Identidade do Criador - Titulo Profissional
+
+**Status**: Aceito
+**Data**: 2026-01-22
+
+### Contexto
+
+Definir como o criador se apresenta no projeto e em materiais publicos, considerando:
+- Processo EB2-NIW (demonstrar habilidade excepcional)
+- Mercado (credibilidade para CTOs/arquitetos)
+- Diferenciacao (nao ser "mais um arquiteto")
+
+### Decisao
+
+**Titulo**: Sociotechnical Systems Architect & AI Engineer
+
+**Tese**: "Building cognitive infrastructure for critical digital systems"
+
+### Razoes
+
+1. **Sociotechnical** legitima soft skills + decisoes humanas + governanca
+2. **Systems Architect** ancora senioridade e rigor
+3. **AI Engineer** posiciona no presente e futuro
+4. Cria **escassez semantica** (poucos profissionais se descrevem assim)
+5. Conecta com **infraestrutura critica** (forte para NIW)
+
+### Linguagem Consistente
+
+Termos a usar em todos os materiais:
+- Cognitive Infrastructure
+- Governance-first
+- Measurable / Auditable
+- Production-grade
+- Sociotechnical Systems
+
+### Consequencias
+
+- Landing kuramei.ai usa esse titulo
+- LinkedIn headline atualizado
+- GitHub profile README atualizado
+- Consistencia em todos os canais
+
+---
+
+## ADR-013: Landing Evidence-Driven
+
+**Status**: Aceito
+**Data**: 2026-01-22
+
+### Contexto
+
+Como estruturar a landing page considerando dois publicos:
+1. USCIS/EB2-NIW (evidencia printavel de autoria e impacto)
+2. Mercado (CTOs, arquitetos buscando solucoes)
+
+### Decisao
+
+**Evidence-driven**: Cada elemento da landing serve duplo proposito.
+
+### Estrutura
+
+| Elemento | Evidencia NIW | Conversao Mercado |
+|----------|---------------|-------------------|
+| Nome + titulo no hero | Autoria clara | Credibilidade |
+| "30+ years" | Qualificacao | Trust signal |
+| GitHub stars | Metrica de impacto | Social proof |
+| Demo | Prova funcional | Ver o produto |
+| MIT License | Beneficio publico | Baixa barreira |
+
+### Consequencias
+
+- Landing bilíngue (EN default, PT toggle)
+- Autoria visivel no hero (nao escondida no footer)
+- GitHub stars como metrica principal
+- Screenshot-friendly para documentacao legal
+
+---
+
 ## Decisoes Pendentes
 
 | ID | Topico | Status |
 |----|--------|--------|
-| ADR-011 | Provider LLM (OpenAI vs Anthropic vs Ollama) | Pendente |
-| ADR-012 | Estrategia de deploy (Vercel + Railway vs outro) | Pendente |
-| ADR-013 | Autenticacao MVP (none vs basic vs OAuth) | Pendente |
+| ADR-014 | Provider LLM (OpenAI vs Anthropic vs Ollama) | Pendente |
+| ADR-015 | Estrategia de deploy app (Vercel + Railway vs outro) | Pendente |
+| ADR-016 | Autenticacao MVP (none vs basic vs OAuth) | Pendente |
 
 ---
 

@@ -32,6 +32,33 @@ Registro de decisoes tomadas durante sessoes de desenvolvimento.
 
 ---
 
+## 2026-01-22 - Identidade e Landing
+
+### Decisao: Dominio
+- **Escolha:** kuramei.ai
+- **Alternativas:** kuramei.com
+- **Razao:** .ai comunica AI-first, mais memoravel
+
+### Decisao: Titulo Profissional do Criador
+- **Escolha:** Sociotechnical Systems Architect & AI Engineer
+- **Alternativas:** Solutions Architect, Principal Engineer, AI Architect
+- **Razao:** Escassez semantica, legitima soft skills, forte para NIW
+
+### Decisao: Tese Central
+- **Escolha:** "Building cognitive infrastructure for critical digital systems"
+- **Razao:** Conecta com infraestrutura critica, beneficio nacional
+
+### Decisao: Landing Evidence-Driven
+- **Escolha:** Landing serve dois publicos (NIW + mercado) com mesmos elementos
+- **Razao:** Cada elemento gera evidencia printavel E converte visitantes
+
+### Decisao: Landing como subpasta
+- **Escolha:** `landing/` dentro do monorepo kuramei
+- **Alternativas:** Repo separado
+- **Razao:** Facilita manutencao, deploy independente via Vercel
+
+---
+
 ## Template
 
 ```markdown

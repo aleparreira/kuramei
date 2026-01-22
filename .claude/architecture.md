@@ -3,6 +3,16 @@
 ## Visao Geral
 
 ```
+                         kuramei.ai (Landing)
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    LANDING (Next.js)                        │
+│  Hero + Features + Creator + CTA → GitHub                   │
+│  Deploy: Vercel | Domínio: kuramei.ai                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ (link para app)
 ┌─────────────────────────────────────────────────────────────┐
 │                    FRONTEND (Next.js)                       │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
@@ -41,6 +51,13 @@
 
 ```
 kuramei/
+├── landing/                    # Landing page (kuramei.ai)
+│   ├── src/
+│   │   ├── app/                # App router
+│   │   ├── components/         # Componentes da landing
+│   │   └── lib/                # i18n, utils
+│   └── package.json
+│
 ├── backend/                    # Python + FastAPI
 │   ├── main.py                 # Entrypoint
 │   ├── core/                   # Logica de dominio (agnóstica)

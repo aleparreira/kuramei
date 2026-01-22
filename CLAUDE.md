@@ -6,7 +6,18 @@
 **Framework**: Kuramei Lens
 **Tagline**: "Clarity emerges."
 **Licença**: MIT (100% open source)
-**Domínio**: kuramei.com
+**Domínio**: kuramei.ai
+
+---
+
+## Criador
+
+**Nome**: Alexandre Parreira
+**Título**: Sociotechnical Systems Architect & AI Engineer
+**Empresa**: Kaltam AI (Founder)
+**Experiência**: 30+ anos em tecnologia
+
+**Tese**: "Building cognitive infrastructure for critical digital systems"
 
 ---
 
@@ -18,7 +29,9 @@ Plataforma de arquitetura de soluções AI-first que permite:
 - Simular custos em tempo real (AWS/Azure pricing APIs)
 - Exportar para Terraform, C4, ArchiMate
 
-**Killer Feature MVP**: Chat → Diagrama → Custo
+**Killer Feature MVP**: Chat → Diagrama → Custo → Terraform
+
+**Posicionamento**: Cognitive Infrastructure for Architecture Decision-Making
 
 ---
 
@@ -26,7 +39,8 @@ Plataforma de arquitetura de soluções AI-first que permite:
 
 | Camada | Tecnologia |
 |--------|------------|
-| Frontend | Next.js 16 + React 19 + Tailwind 4 |
+| Landing | Next.js + Tailwind (deploy Vercel) |
+| Frontend | Next.js 15 + React 19 + Tailwind 4 |
 | UI | shadcn/ui (tema Kuramei) |
 | Diagramas | React Flow (customizado) |
 | Backend | Python + FastAPI |
@@ -82,15 +96,33 @@ Export/import para C4 (Context, Container, Component, Deployment).
 kuramei/
 ├── CLAUDE.md           # Este arquivo
 ├── .claude/
+│   ├── architecture.md # Visão arquitetural
 │   ├── guardrails.md   # Checklist de implementação
-│   └── rules/          # Regras específicas
+│   ├── rules/          # Regras específicas
+│   └── memory/         # Decisões e sessões
+├── landing/            # Landing page (kuramei.ai)
+│   ├── src/
+│   └── package.json
 ├── backend/            # Python + FastAPI
 │   ├── core/           # Lógica agnóstica
 │   └── adapters/       # DB, LLM, Storage
-├── frontend/           # Next.js + React Flow
+├── frontend/           # Next.js + React Flow (app)
+│   ├── src/
+│   └── package.json
 ├── docs/               # Documentação pública
 └── docker-compose.yml  # Dev local
 ```
+
+---
+
+## Público-Alvo
+
+| Perfil | Necessidade | Como Kuramei ajuda |
+|--------|-------------|-------------------|
+| Solutions Architects | Acelerar decisões | Chat → Arquitetura em minutos |
+| CTOs | Visão executiva + custo | Zoom semântico + estimativas |
+| DevOps/SRE | Infraestrutura como código | Export Terraform |
+| Startups | Decisão rápida | MVP arquitetural instantâneo |
 
 ---
 
@@ -113,18 +145,33 @@ kuramei/
 - 100% open source (MIT)
 - Commits públicos frequentes
 - Divulgação X + LinkedIn
-- Atrair contribuidores e reconhecimento
+- Autoria clara: Alexandre Parreira
+- Kuramei como prova de "cognitive infrastructure"
+
+**Linguagem consistente**:
+- Cognitive Infrastructure
+- Governance-first
+- Measurable / Auditable
+- Production-grade
+- Sociotechnical Systems
 
 ---
 
 ## Status Atual
 
 **Data**: 2026-01-22
-**Fase**: Setup inicial
+**Fase**: Setup inicial + Documentação
+
+### Concluído
+
+- [x] Repositório Git inicializado
+- [x] Documentação base (VISION, METAMODEL, MVP-ROADMAP, DECISIONS, C4-MAPPING, DESIGN-SYSTEM)
+- [x] Workflow .claude/ configurado
+- [x] Definição de identidade e posicionamento
 
 ### Próximos Passos
 
-1. [ ] Inicializar repositório Git
+1. [ ] Criar estrutura landing/
 2. [ ] Setup backend Python + FastAPI
 3. [ ] Setup frontend Next.js + shadcn
-4. [ ] Implementar MVP (Chat → Diagrama → Custo)
+4. [ ] Implementar MVP Semana 1
