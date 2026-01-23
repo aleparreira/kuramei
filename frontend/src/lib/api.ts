@@ -278,7 +278,7 @@ export async function createConversation(
  * List conversations for a model.
  */
 export async function listConversations(modelId: string): Promise<Conversation[]> {
-  return apiCall<Conversation[]>(`/api/v1/chat/conversations?model_id=${modelId}`);
+  return apiCall<Conversation[]>(`/api/v1/chat/conversations?model_id=${encodeURIComponent(modelId)}`);
 }
 
 /**
@@ -305,8 +305,17 @@ export function sendMessageSSE(
   content: string,
   callbacks: SSECallbacks
 ): SSEConnection {
-  const url = `${API_URL}/api/v1/chat/conversations/${conversationId}/messages`;
+  const url = `${API_URL}/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/messages`;
   const controller = new AbortController();
+
+  // Guard against double onDone calls
+  let doneHandled = false;
+  const callOnDone = () => {
+    if (!doneHandled) {
+      doneHandled = true;
+      callbacks.onDone?.();
+    }
+  };
 
   // Start the SSE connection
   (async () => {
@@ -330,14 +339,14 @@ export function sendMessageSSE(
           detail = await response.text();
         }
         callbacks.onError?.(`Request failed: ${response.status} - ${detail}`);
-        callbacks.onDone?.();
+        callOnDone();
         return;
       }
 
       const reader = response.body?.getReader();
       if (!reader) {
         callbacks.onError?.('No response body');
-        callbacks.onDone?.();
+        callOnDone();
         return;
       }
 
@@ -350,12 +359,15 @@ export function sendMessageSSE(
         if (done) {
           // Process any remaining buffer
           if (buffer.trim()) {
-            processSSEChunk(buffer, callbacks);
+            processSSEChunk(buffer, callbacks, callOnDone);
           }
           break;
         }
 
         buffer += decoder.decode(value, { stream: true });
+
+        // Normalize line endings (handle \r\n from some servers)
+        buffer = buffer.replace(/\r\n/g, '\n');
 
         // Process complete events (each ends with double newline)
         const events = buffer.split('\n\n');
@@ -364,24 +376,25 @@ export function sendMessageSSE(
 
         for (const eventText of events) {
           if (eventText.trim()) {
-            processSSEChunk(eventText, callbacks);
+            processSSEChunk(eventText, callbacks, callOnDone);
           }
         }
       }
 
       // Ensure onDone is called even if not received from server
-      callbacks.onDone?.();
+      callOnDone();
     } catch (error) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          // Connection was intentionally closed
+          // Connection was intentionally closed - still call onDone for cleanup
+          callOnDone();
           return;
         }
         callbacks.onError?.(error.message);
       } else {
         callbacks.onError?.('Unknown error');
       }
-      callbacks.onDone?.();
+      callOnDone();
     }
   })();
 
@@ -392,23 +405,33 @@ export function sendMessageSSE(
 
 /**
  * Process a single SSE chunk and call appropriate callbacks.
+ *
+ * SSE spec: multiple `data:` lines are concatenated with newlines.
  */
-function processSSEChunk(chunk: string, callbacks: SSECallbacks): void {
+function processSSEChunk(
+  chunk: string,
+  callbacks: SSECallbacks,
+  callOnDone: () => void
+): void {
   let eventType: SSEEventType | null = null;
-  let data: string | null = null;
+  const dataLines: string[] = [];
 
   const lines = chunk.split('\n');
   for (const line of lines) {
     if (line.startsWith('event:')) {
       eventType = line.slice(6).trim() as SSEEventType;
     } else if (line.startsWith('data:')) {
-      data = line.slice(5).trim();
+      // Accumulate data lines (SSE spec allows multiple data: lines)
+      dataLines.push(line.slice(5));
     }
   }
 
   if (!eventType) {
     return;
   }
+
+  // Join multiple data lines with newlines (per SSE spec)
+  const data = dataLines.length > 0 ? dataLines.join('\n').trim() : null;
 
   switch (eventType) {
     case 'token':
@@ -457,7 +480,7 @@ function processSSEChunk(chunk: string, callbacks: SSECallbacks): void {
       break;
 
     case 'done':
-      callbacks.onDone?.();
+      callOnDone();
       break;
   }
 }
