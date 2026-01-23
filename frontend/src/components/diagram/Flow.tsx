@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -322,6 +322,18 @@ export default function Flow() {
   const [streamingContent, setStreamingContent] = useState<string | undefined>(
     undefined
   );
+  const streamingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
+
+  // Cleanup streaming interval on unmount
+  useEffect(() => {
+    return () => {
+      if (streamingIntervalRef.current) {
+        clearInterval(streamingIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Bootstrap MVP on mount
   useEffect(() => {
@@ -369,6 +381,12 @@ export default function Flow() {
   }, []);
 
   const handleSendMessage = useCallback((content: string) => {
+    // Clear any existing streaming interval
+    if (streamingIntervalRef.current) {
+      clearInterval(streamingIntervalRef.current);
+      streamingIntervalRef.current = null;
+    }
+
     // Add user message
     const userMessage: Message = {
       id: getNextMessageId(),
@@ -383,14 +401,20 @@ export default function Flow() {
     setStreamingContent('');
 
     // Simulate streaming response for UI testing
-    const placeholderResponse = 'This is a placeholder response. SSE streaming will be implemented in the next task.';
+    const placeholderResponse =
+      'This is a placeholder response. SSE streaming will be implemented in the next task.';
     let index = 0;
-    const interval = setInterval(() => {
+    streamingIntervalRef.current = setInterval(() => {
       if (index < placeholderResponse.length) {
-        setStreamingContent((prev) => (prev || '') + placeholderResponse[index]);
+        setStreamingContent(
+          (prev) => (prev || '') + placeholderResponse[index]
+        );
         index++;
       } else {
-        clearInterval(interval);
+        if (streamingIntervalRef.current) {
+          clearInterval(streamingIntervalRef.current);
+          streamingIntervalRef.current = null;
+        }
         // Add final assistant message
         const assistantMessage: Message = {
           id: getNextMessageId(),

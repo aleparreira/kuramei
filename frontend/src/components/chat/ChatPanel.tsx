@@ -44,15 +44,41 @@ export function ChatPanel({
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const wasNearBottomRef = useRef(true);
 
-  // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Check if user is near bottom of scroll area
+  const isNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    const threshold = 100; // pixels from bottom
+    return (
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      threshold
+    );
   }, []);
 
-  // Scroll on new messages or streaming content
+  // Auto-scroll to bottom when new messages arrive (only if user was near bottom)
+  const scrollToBottom = useCallback(
+    (smooth: boolean = false) => {
+      if (wasNearBottomRef.current) {
+        messagesEndRef.current?.scrollIntoView({
+          behavior: smooth ? 'smooth' : 'auto',
+        });
+      }
+    },
+    []
+  );
+
+  // Track scroll position before updates
   useEffect(() => {
-    scrollToBottom();
+    wasNearBottomRef.current = isNearBottom();
+  }, [messages, isNearBottom]);
+
+  // Scroll on new messages (smooth) or streaming content (instant)
+  useEffect(() => {
+    // Use instant scroll during streaming to avoid jank
+    const isStreaming = !!streamingContent;
+    scrollToBottom(!isStreaming);
   }, [messages, streamingContent, scrollToBottom]);
 
   const handleSend = useCallback(() => {
