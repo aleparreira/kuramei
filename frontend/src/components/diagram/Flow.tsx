@@ -17,8 +17,10 @@ import {
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { MessageSquare } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ChatPanel, type Message } from '@/components/chat';
 import {
   loadGraph,
   saveGraph,
@@ -130,9 +132,17 @@ interface FlowCanvasProps {
   modelId: string;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  isChatOpen: boolean;
+  onToggleChat: () => void;
 }
 
-function FlowCanvas({ modelId, onError, onSuccess }: FlowCanvasProps) {
+function FlowCanvas({
+  modelId,
+  onError,
+  onSuccess,
+  isChatOpen,
+  onToggleChat,
+}: FlowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -274,6 +284,14 @@ function FlowCanvas({ modelId, onError, onSuccess }: FlowCanvasProps) {
         maskColor="rgba(69, 67, 96, 0.1)"
       />
       <Panel position="top-right" className="flex gap-2">
+        <Button
+          variant={isChatOpen ? 'default' : 'outline'}
+          onClick={onToggleChat}
+          size="icon"
+          title="Toggle chat"
+        >
+          <MessageSquare className="h-4 w-4" />
+        </Button>
         <Button variant="outline" onClick={handleAddNode}>
           + Add Node
         </Button>
@@ -287,11 +305,23 @@ function FlowCanvas({ modelId, onError, onSuccess }: FlowCanvasProps) {
 
 // --- Wrapper with bootstrap ---
 
+// --- Message ID generator ---
+let messageIdCounter = 0;
+const getNextMessageId = () => `msg_${Date.now()}_${++messageIdCounter}`;
+
 export default function Flow() {
   const [modelId, setModelId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+
+  // Chat state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<string | undefined>(
+    undefined
+  );
 
   // Bootstrap MVP on mount
   useEffect(() => {
@@ -329,6 +359,51 @@ export default function Flow() {
     setTimeout(() => setStatus(null), 3000);
   }, []);
 
+  // Chat handlers
+  const handleToggleChat = useCallback(() => {
+    setIsChatOpen((prev) => !prev);
+  }, []);
+
+  const handleCloseChat = useCallback(() => {
+    setIsChatOpen(false);
+  }, []);
+
+  const handleSendMessage = useCallback((content: string) => {
+    // Add user message
+    const userMessage: Message = {
+      id: getNextMessageId(),
+      role: 'user',
+      content,
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    // TODO: fn-2-9xx.7 will implement actual SSE streaming
+    // For now, simulate a placeholder response
+    setIsLoadingChat(true);
+    setStreamingContent('');
+
+    // Simulate streaming response for UI testing
+    const placeholderResponse = 'This is a placeholder response. SSE streaming will be implemented in the next task.';
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < placeholderResponse.length) {
+        setStreamingContent((prev) => (prev || '') + placeholderResponse[index]);
+        index++;
+      } else {
+        clearInterval(interval);
+        // Add final assistant message
+        const assistantMessage: Message = {
+          id: getNextMessageId(),
+          role: 'assistant',
+          content: placeholderResponse,
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        setStreamingContent(undefined);
+        setIsLoadingChat(false);
+      }
+    }, 20);
+  }, []);
+
   if (isBootstrapping) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-background">
@@ -353,30 +428,45 @@ export default function Flow() {
   }
 
   return (
-    <div className="h-full w-full relative">
-      <ReactFlowProvider>
-        {modelId && (
-          <FlowCanvas
-            modelId={modelId}
-            onError={handleError}
-            onSuccess={handleSuccess}
-          />
-        )}
-      </ReactFlowProvider>
-      {/* Status/Error toast */}
-      {(error || status) && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
-          <div
-            className={`px-4 py-2 rounded-md shadow-lg text-sm ${
-              error
-                ? 'bg-destructive text-destructive-foreground'
-                : 'bg-card text-card-foreground border border-border'
-            }`}
-          >
-            {error || status}
+    <div className="flex h-full w-full">
+      {/* Canvas area */}
+      <div className="relative flex-1">
+        <ReactFlowProvider>
+          {modelId && (
+            <FlowCanvas
+              modelId={modelId}
+              onError={handleError}
+              onSuccess={handleSuccess}
+              isChatOpen={isChatOpen}
+              onToggleChat={handleToggleChat}
+            />
+          )}
+        </ReactFlowProvider>
+        {/* Status/Error toast */}
+        {(error || status) && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
+            <div
+              className={`px-4 py-2 rounded-md shadow-lg text-sm ${
+                error
+                  ? 'bg-destructive text-destructive-foreground'
+                  : 'bg-card text-card-foreground border border-border'
+              }`}
+            >
+              {error || status}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* Chat panel */}
+      <ChatPanel
+        isOpen={isChatOpen}
+        onClose={handleCloseChat}
+        messages={messages}
+        onSendMessage={handleSendMessage}
+        isLoading={isLoadingChat}
+        streamingContent={streamingContent}
+      />
     </div>
   );
 }
