@@ -253,6 +253,29 @@ function FlowCanvas({
   const popToNavigation = useCanvasStore((state) => state.popToNavigation);
   const clearNavigation = useCanvasStore((state) => state.clearNavigation);
 
+  // Theme context for dark mode toggle
+  const { theme, setTheme, resolvedTheme } = useTheme();
+
+  // Toggle theme between light, dark, and system
+  const handleToggleTheme = useCallback(() => {
+    // Cycle through: light -> dark -> system -> light
+    if (theme === 'light') {
+      setTheme('dark');
+    } else if (theme === 'dark') {
+      setTheme('system');
+    } else {
+      setTheme('light');
+    }
+  }, [theme, setTheme]);
+
+  // Get theme button title
+  const getThemeTitle = () => {
+    if (theme === 'system') {
+      return `Theme: System (${resolvedTheme})`;
+    }
+    return `Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`;
+  };
+
   // Helper to check if a node has children
   const getNodesWithChildrenInfo = useCallback((backendNodes: NodeData[]) => {
     const parentIds = new Set(
@@ -589,6 +612,18 @@ function FlowCanvas({
         </Panel>
       )}
       <Panel position="top-right" className="flex gap-2">
+        <Button
+          variant="outline"
+          onClick={handleToggleTheme}
+          size="icon"
+          title={getThemeTitle()}
+        >
+          {resolvedTheme === 'dark' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </Button>
         <Button
           variant={isChatOpen ? 'default' : 'outline'}
           onClick={onToggleChat}

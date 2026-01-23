@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -160,4 +160,25 @@ html {
   background: var(--secondary);
   border-radius: 50%;
   border: 2px solid var(--background);
+}
+
+/* React Flow - Animated edges */
+/* Smooth Bezier curve edges with SVG-based animations */
+
+/* Reduce animation for users with motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge circle animateMotion {
+    animation: none;
+  }
+}
+
+/* Edge label background styling */
+.react-flow__edge-text {
+  font-size: 10px;
+  fill: #454360;
+}
+
+.react-flow__edge-textbg {
+  fill: white;
+  stroke: #e4e4eb;
 }
