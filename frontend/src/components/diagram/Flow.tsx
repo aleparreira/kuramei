@@ -33,6 +33,7 @@ import {
   type EdgeData,
   type Viewport,
 } from '@/lib/api';
+import { useCanvasStore, type ZoomLevel } from '@/stores/canvasStore';
 
 // Config from DESIGN-SYSTEM.md
 const canvasConfig = {
@@ -128,6 +129,17 @@ function edgeFromBackend(edge: EdgeData): Edge {
 let nodeIdCounter = 0;
 const getNextId = () => `node_${Date.now()}_${++nodeIdCounter}`;
 
+// --- Level descriptions for tooltips ---
+function getLevelDescription(level: ZoomLevel): string {
+  const descriptions: Record<ZoomLevel, string> = {
+    L0: 'System view (CEO)',
+    L1: 'Domain view (CTO)',
+    L2: 'Service view (Architect)',
+    L3: 'Infrastructure view (DevOps)',
+  };
+  return descriptions[level];
+}
+
 // --- Main component ---
 
 interface FlowCanvasProps {
@@ -156,6 +168,10 @@ function FlowCanvas({
   const [isLoading, setIsLoading] = useState(true);
   const { screenToFlowPosition, setViewport, toObject } = useReactFlow();
 
+  // Zustand store for semantic zoom
+  const currentLevel = useCanvasStore((state) => state.currentLevel);
+  const setLevel = useCanvasStore((state) => state.setLevel);
+
   // Handle graph updates from chat (SSE)
   const handleGraphUpdate = useCallback(
     (graph: GraphResponse) => {
@@ -172,18 +188,18 @@ function FlowCanvas({
     onRegisterGraphUpdate?.(handleGraphUpdate);
   }, [onRegisterGraphUpdate, handleGraphUpdate]);
 
-  // Load graph on mount
+  // Load graph when modelId or currentLevel changes
   useEffect(() => {
     async function load() {
       setIsLoading(true);
       try {
-        const graph = await loadGraph(modelId);
+        const graph = await loadGraph(modelId, { level: currentLevel });
         setNodes(graph.nodes.map(nodeFromBackend));
         setEdges(graph.edges.map(edgeFromBackend));
         if (graph.viewport) {
           setViewport(graph.viewport);
         }
-        onSuccess('Graph loaded');
+        onSuccess(currentLevel ? `Graph loaded (${currentLevel})` : 'Graph loaded');
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
           // Model exists but graph is empty - that's fine
@@ -199,7 +215,15 @@ function FlowCanvas({
     }
 
     load();
-  }, [modelId, setNodes, setEdges, setViewport, onError, onSuccess]);
+  }, [modelId, currentLevel, setNodes, setEdges, setViewport, onError, onSuccess]);
+
+  // Handle level toggle
+  const handleLevelChange = useCallback(
+    (level: ZoomLevel | null) => {
+      setLevel(level);
+    },
+    [setLevel]
+  );
 
   // Handle edge connections
   const onConnect: OnConnect = useCallback(
@@ -320,6 +344,29 @@ function FlowCanvas({
         </Button>
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? 'Saving...' : 'Save'}
+        </Button>
+      </Panel>
+      <Panel position="top-left" className="flex gap-1">
+        {(['L0', 'L1', 'L2', 'L3'] as const).map((level) => (
+          <Button
+            key={level}
+            variant={currentLevel === level ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleLevelChange(level)}
+            title={getLevelDescription(level)}
+            className="min-w-[40px]"
+          >
+            {level}
+          </Button>
+        ))}
+        <Button
+          variant={currentLevel === null ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => handleLevelChange(null)}
+          title="Show all levels"
+          className="min-w-[40px]"
+        >
+          All
         </Button>
       </Panel>
     </ReactFlow>

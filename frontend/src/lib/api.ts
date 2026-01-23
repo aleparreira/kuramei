@@ -168,8 +168,22 @@ export async function getModel(modelId: string): Promise<Model> {
 
 // --- Graph API ---
 
-export async function loadGraph(modelId: string): Promise<GraphResponse> {
-  return apiCall<GraphResponse>(`/api/v1/models/${modelId}/graph`);
+export interface LoadGraphOptions {
+  /** Filter by semantic zoom level (L0, L1, L2, L3) */
+  level?: string | null;
+}
+
+export async function loadGraph(
+  modelId: string,
+  options?: LoadGraphOptions
+): Promise<GraphResponse> {
+  const params = new URLSearchParams();
+  if (options?.level) {
+    params.set('level', options.level);
+  }
+  const queryString = params.toString();
+  const url = `/api/v1/models/${modelId}/graph${queryString ? `?${queryString}` : ''}`;
+  return apiCall<GraphResponse>(url);
 }
 
 export async function saveGraph(
