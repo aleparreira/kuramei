@@ -2,11 +2,13 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
 from src.models.models import Model
 from src.models.schemas import ModelCreate, ModelResponse, ModelUpdate
+from src.projects.models import Project
 
 router = APIRouter()
 
@@ -30,9 +32,26 @@ async def create_model(
     db: AsyncSession = Depends(get_db),
 ) -> Model:
     """Create a new architecture model."""
+    # Validate project exists
+    project_result = await db.execute(
+        select(Project).where(Project.id == model_data.project_id)
+    )
+    if project_result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Project {model_data.project_id} not found",
+        )
+
     model = Model(**model_data.model_dump())
     db.add(model)
-    await db.flush()
+    try:
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create model: {str(e)}",
+        )
     await db.refresh(model)
     return model
 
@@ -68,11 +87,14 @@ async def update_model(
             detail=f"Model {model_id} not found",
         )
 
+    # Filter out None values to avoid setting required fields to null
     update_data = model_data.model_dump(exclude_unset=True)
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+
     for field, value in update_data.items():
         setattr(model, field, value)
 
-    await db.flush()
+    await db.commit()
     await db.refresh(model)
     return model
 
@@ -92,3 +114,4 @@ async def delete_model(
         )
 
     await db.delete(model)
+    await db.commit()

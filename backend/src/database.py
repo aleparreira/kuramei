@@ -2,8 +2,10 @@
 
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import Pool
 
 from src.config import get_settings
 
@@ -13,16 +15,25 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
-    # SQLite-specific: enable WAL mode for better concurrency
     connect_args={"check_same_thread": False},
 )
+
+
+# Enable SQLite foreign keys and WAL mode on each connection
+@event.listens_for(Pool, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable SQLite foreign keys and WAL mode for better concurrency."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.close()
+
 
 # Session factory
 async_session_maker = async_sessionmaker(
     engine,
     class_=AsyncSession,
     expire_on_commit=False,
-    autocommit=False,
     autoflush=False,
 )
 
@@ -34,16 +45,17 @@ class Base(DeclarativeBase):
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency that provides a database session."""
+    """Dependency that provides a database session.
+
+    Note: This dependency does NOT auto-commit. Endpoints that modify data
+    must explicitly call session.commit() or use session.begin() context.
+    """
     async with async_session_maker() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise
-        finally:
-            await session.close()
 
 
 async def init_db() -> None:
@@ -53,6 +65,8 @@ async def init_db() -> None:
     from src.models.models import Model, Node, Edge  # noqa: F401
 
     async with engine.begin() as conn:
+        # Enable foreign keys for this connection
+        await conn.execute(text("PRAGMA foreign_keys=ON"))
         await conn.run_sync(Base.metadata.create_all)
 
 

@@ -26,7 +26,7 @@ async def create_project(
     """Create a new project."""
     project = Project(**project_data.model_dump())
     db.add(project)
-    await db.flush()
+    await db.commit()
     await db.refresh(project)
     return project
 
@@ -62,11 +62,14 @@ async def update_project(
             detail=f"Project {project_id} not found",
         )
 
+    # Filter out None values to avoid setting required fields to null
     update_data = project_data.model_dump(exclude_unset=True)
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+
     for field, value in update_data.items():
         setattr(project, field, value)
 
-    await db.flush()
+    await db.commit()
     await db.refresh(project)
     return project
 
@@ -86,3 +89,4 @@ async def delete_project(
         )
 
     await db.delete(project)
+    await db.commit()
