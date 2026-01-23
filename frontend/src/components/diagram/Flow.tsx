@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -17,11 +17,12 @@ import {
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { MessageSquare, Layers } from 'lucide-react';
+import { MessageSquare, Layers, DollarSign } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ChatPanel } from '@/components/chat';
 import { Breadcrumbs } from '@/components/diagram/Breadcrumbs';
+import { CostNode, formatCurrency, type CostData } from '@/components/diagram/CostNode';
 import { useChat, type ChatMessage } from '@/hooks/useChat';
 import {
   loadGraph,
@@ -47,6 +48,11 @@ const canvasConfig = {
   fitViewOptions: {
     padding: 0.2,
   },
+};
+
+// Custom node types for React Flow
+const nodeTypes = {
+  costNode: CostNode,
 };
 
 // --- Conversion helpers: React Flow <-> Backend ---
@@ -80,20 +86,53 @@ function nodeToBackend(node: Node): NodeData {
 }
 
 /**
+ * Parse cost data from backend format.
+ * Backend may use 'monthlyUSD' or 'monthly' for the cost value.
+ * @param costData - Raw cost data from backend (JSON object)
+ * @returns Parsed CostData or null
+ */
+function parseCostData(costData: Record<string, unknown> | null | undefined): CostData | null {
+  if (!costData) return null;
+
+  // Support both 'monthly' and 'monthlyUSD' field names from backend
+  const monthly = typeof costData.monthly === 'number'
+    ? costData.monthly
+    : typeof costData.monthlyUSD === 'number'
+      ? costData.monthlyUSD
+      : undefined;
+  const breakdown = costData.breakdown && typeof costData.breakdown === 'object'
+    ? costData.breakdown as Record<string, number>
+    : undefined;
+  const currency = typeof costData.currency === 'string' ? costData.currency : 'USD';
+  const confidence = costData.confidence === 'estimated' || costData.confidence === 'actual'
+    ? costData.confidence
+    : undefined;
+
+  if (monthly === undefined) return null;
+
+  return { monthly, breakdown, currency, confidence };
+}
+
+/**
  * Convert backend node to React Flow format.
  * @param node - Backend node data
  * @param hasChildren - Whether this node has child nodes
  */
 function nodeFromBackend(node: NodeData, hasChildren: boolean = false): Node {
+  const cost = parseCostData(node.cost);
+  // Use costNode type for all nodes (it handles cost display gracefully)
+  const nodeType = 'costNode';
+
   return {
     id: node.id,
-    type: node.type === 'default' ? 'default' : node.type,
+    type: nodeType,
     position: { x: node.position.x, y: node.position.y },
     data: {
       label: node.name,
       level: node.level,
       hasChildren,
       backendParentId: node.parent_node_id,
+      cost,
       ...(node.properties || {}),
     },
     parentId: node.parent_node_id || undefined,
@@ -445,6 +484,17 @@ function FlowCanvas({
     setNodes((nds) => [...nds, newNode]);
   }, [setNodes, toObject, nodes.length]);
 
+  // Calculate total cost of visible nodes
+  const totalCost = useMemo(() => {
+    return nodes.reduce((sum, node) => {
+      const cost = node.data?.cost as CostData | undefined;
+      if (cost?.monthly && typeof cost.monthly === 'number') {
+        return sum + cost.monthly;
+      }
+      return sum;
+    }, 0);
+  }, [nodes]);
+
   if (isLoading) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-background">
@@ -464,6 +514,7 @@ function FlowCanvas({
     <ReactFlow
       nodes={enhancedNodes}
       edges={edges}
+      nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
@@ -517,7 +568,7 @@ function FlowCanvas({
         </Button>
       </Panel>
       <Panel position="top-left" className="flex flex-col gap-2">
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           {(['L0', 'L1', 'L2', 'L3'] as const).map((level) => (
             <Button
               key={level}
@@ -539,6 +590,21 @@ function FlowCanvas({
           >
             All
           </Button>
+          {/* Total cost display */}
+          {totalCost > 0 && (
+            <>
+              <div className="h-4 w-px bg-border mx-1" />
+              <div
+                className="flex items-center gap-1 bg-card/90 backdrop-blur-sm px-2 py-1 rounded-md border border-border text-sm"
+                title="Total monthly cost of visible nodes"
+              >
+                <DollarSign className="h-4 w-4 text-secondary" />
+                <span className="font-medium">
+                  Total: {formatCurrency(totalCost)}/mo
+                </span>
+              </div>
+            </>
+          )}
         </div>
         {/* Legend for drill-down */}
         <div className="text-xs text-muted-foreground flex items-center gap-1">
