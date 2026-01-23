@@ -30,6 +30,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3001",
     ]
 
+    # LLM Configuration
+    anthropic_api_key: str | None = None
+    anthropic_model: str = "claude-sonnet-4-20250514"
+
     @property
     def database_path(self) -> Path:
         """Extract the database file path from the URL."""
