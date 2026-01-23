@@ -1,5 +1,7 @@
 """Tests for chat API endpoints."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -222,6 +224,166 @@ class TestSendMessageEndpoint:
         )
         assert response.status_code == 503
         assert "anthropic" in response.json()["detail"].lower()
+
+
+class TestChatServiceUnit:
+    """Unit tests for ChatService stream_response method.
+
+    These tests mock at the service level to test the event generation logic
+    without making actual HTTP requests.
+    """
+
+    async def test_stream_response_emits_all_event_types(self):
+        """Test that stream_response emits token, graph, and done events."""
+        from unittest.mock import MagicMock
+
+        from src.adapters.llm.base import LLMMessage
+        from src.chat.service import ChatContext, ChatService
+
+        # Create a mock db session
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+        mock_db.add = MagicMock()
+
+        # Mock settings
+        with patch("src.chat.service.get_settings") as mock_settings:
+            mock_settings.return_value.anthropic_api_key = "test-key"
+            mock_settings.return_value.anthropic_model = "test-model"
+
+            # Mock the LLM adapter
+            with patch("src.chat.service.AnthropicAdapter"):
+                # Create service
+                service = ChatService(mock_db)
+
+                # Mock get_conversation_context
+                async def mock_context(*args):
+                    return ChatContext(
+                        messages=[LLMMessage(role="user", content="previous")],
+                        architecture_summary="Current architecture: Empty"
+                    )
+
+                service.get_conversation_context = mock_context
+
+                # Mock _get_current_graph
+                async def mock_graph(*args):
+                    return {"nodes": [], "edges": []}
+
+                service._get_current_graph = mock_graph
+
+                # Mock _update_conversation_timestamp
+                async def mock_timestamp(*args):
+                    pass
+
+                service._update_conversation_timestamp = mock_timestamp
+
+                # Mock LLM stream to return simple response
+                async def mock_llm_stream(*args, **kwargs):
+                    for token in ["Hello", " there"]:
+                        yield token
+
+                service.llm.chat_stream = mock_llm_stream
+
+                # Mock conversation
+                mock_conversation = MagicMock()
+                mock_conversation.id = "conv-123"
+                mock_conversation.model_id = "model-456"
+
+                # Collect events
+                events = []
+                async for event in service.stream_response(mock_conversation, "Hi"):
+                    events.append(event)
+
+                # Verify events
+                event_types = [e.type for e in events]
+
+                # Should have token events
+                assert "token" in event_types, f"Missing token events. Got: {event_types}"
+
+                # Should have graph event (always emitted)
+                assert "graph" in event_types, f"Missing graph event. Got: {event_types}"
+
+                # Should end with done
+                assert events[-1].type == "done", f"Last event should be done. Got: {events[-1].type}"
+
+    async def test_stream_response_with_operations_emits_operations_event(self):
+        """Test that stream_response emits operations event when ops are parsed."""
+        from unittest.mock import MagicMock
+
+        from src.chat.service import ChatContext, ChatService
+
+        # Create a mock db session
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+        mock_db.add = MagicMock()
+
+        with patch("src.chat.service.get_settings") as mock_settings:
+            mock_settings.return_value.anthropic_api_key = "test-key"
+            mock_settings.return_value.anthropic_model = "test-model"
+
+            with patch("src.chat.service.AnthropicAdapter"):
+                service = ChatService(mock_db)
+
+                async def mock_context(*args):
+                    return ChatContext(
+                        messages=[],
+                        architecture_summary="Current architecture: Empty"
+                    )
+
+                service.get_conversation_context = mock_context
+
+                async def mock_graph(*args):
+                    return {"nodes": [], "edges": []}
+
+                service._get_current_graph = mock_graph
+
+                async def mock_timestamp(*args):
+                    pass
+
+                service._update_conversation_timestamp = mock_timestamp
+
+                # LLM response with operations
+                response_with_ops = '''Adding a service.
+
+```json
+{"operations": [{"op": "add_node", "node": {"type": "service", "name": "API"}}]}
+```'''
+
+                async def mock_llm_stream(*args, **kwargs):
+                    for char in response_with_ops:
+                        yield char
+
+                service.llm.chat_stream = mock_llm_stream
+
+                # Mock changeset service to return result
+                async def mock_apply_ops(*args, **kwargs):
+                    mock_result = MagicMock()
+                    mock_result.nodes = [{"id": "1", "name": "API", "type": "service"}]
+                    mock_result.edges = []
+                    return mock_result
+
+                service.changeset_service.apply_operations = mock_apply_ops
+
+                mock_conversation = MagicMock()
+                mock_conversation.id = "conv-123"
+                mock_conversation.model_id = "model-456"
+
+                events = []
+                async for event in service.stream_response(mock_conversation, "Add API"):
+                    events.append(event)
+
+                event_types = [e.type for e in events]
+
+                # Should have operations event
+                assert "operations" in event_types, f"Missing operations event. Got: {event_types}"
+
+                # Find the operations event and verify data
+                ops_event = next(e for e in events if e.type == "operations")
+                assert len(ops_event.data) == 1
+                assert ops_event.data[0]["op"] == "add_node"
 
 
 class TestParserTopLevelList:
