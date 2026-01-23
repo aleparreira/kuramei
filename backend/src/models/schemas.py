@@ -112,6 +112,7 @@ class EdgeBase(BaseModel):
     type: str
     source_node_id: str
     target_node_id: str
+    label: str | None = None
     properties: dict[str, Any] | None = None
 
 
@@ -137,6 +138,7 @@ class EdgeUpdate(BaseModel):
     type: str | None = None
     source_node_id: str | None = None
     target_node_id: str | None = None
+    label: str | None = None
     properties: dict[str, Any] | None = None
 
 

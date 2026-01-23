@@ -1,8 +1,8 @@
 """initial_schema_projects_models_nodes_edges
 
-Revision ID: 9e87832a7778
+Revision ID: c1f21cd9afe8
 Revises: 
-Create Date: 2026-01-22 22:44:28.033192
+Create Date: 2026-01-22 22:53:38.137069
 
 """
 from collections.abc import Sequence
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '9e87832a7778'
+revision: str = 'c1f21cd9afe8'
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -36,7 +36,7 @@ def upgrade() -> None:
     sa.Column('project_id', sa.String(length=36), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('status', sa.String(length=50), nullable=False),
+    sa.Column('status', sa.String(length=50), server_default='draft', nullable=False),
     sa.Column('version', sa.String(length=50), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
@@ -75,6 +75,7 @@ def upgrade() -> None:
     sa.Column('type', sa.String(length=50), nullable=False),
     sa.Column('source_node_id', sa.String(length=36), nullable=False),
     sa.Column('target_node_id', sa.String(length=36), nullable=False),
+    sa.Column('label', sa.Text(), nullable=True),
     sa.Column('properties', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
