@@ -1,4 +1,11 @@
-"""FastAPI router for chat API endpoints."""
+"""FastAPI router for chat API endpoints.
+
+NOTE: Authentication/authorization is intentionally NOT implemented in this MVP.
+The Kuramei project is in early development phase and auth will be added in a
+dedicated security task when user management is implemented.
+
+See: https://github.com/kuramei/kuramei/issues/xxx (future auth task)
+"""
 
 import json
 import logging
