@@ -97,6 +97,12 @@ class ChangeSetService:
         Raises:
             ChangeSetApplicationError: If any operation fails.
         """
+        # Verify model exists first (for both empty and non-empty operations)
+        result = await self.db.execute(select(Model).where(Model.id == model_id))
+        model = result.scalar_one_or_none()
+        if model is None:
+            raise ChangeSetApplicationError(f"Model {model_id} not found")
+
         if not operations:
             # No operations to apply - still create a changeset for record
             changeset = await self._create_changeset(
@@ -106,18 +112,14 @@ class ChangeSetService:
                 operations=[],
                 summary="No operations to apply",
             )
+            # Commit to persist the changeset
+            await self.db.commit()
             graph = await self._load_graph_state(model_id)
             return ApplyResult(
                 changeset=changeset,
                 nodes=self._serialize_nodes(list(graph.nodes.values())),
                 edges=self._serialize_edges(list(graph.edges.values())),
             )
-
-        # Verify model exists
-        result = await self.db.execute(select(Model).where(Model.id == model_id))
-        model = result.scalar_one_or_none()
-        if model is None:
-            raise ChangeSetApplicationError(f"Model {model_id} not found")
 
         # Load current graph state
         graph = await self._load_graph_state(model_id)
@@ -265,11 +267,20 @@ class ChangeSetService:
         # Apply updates
         updates = op.updates
         if "name" in updates:
-            # Update name mapping
+            new_name = updates["name"]
             old_name = node.name
+
+            # Check if new name conflicts with another existing node
+            if new_name != old_name and new_name in graph.name_to_id:
+                raise ChangeSetApplicationError(
+                    f"Cannot rename node to '{new_name}': a node with that name already exists",
+                    operation_index=index,
+                )
+
+            # Update name mapping
             del graph.name_to_id[old_name]
-            graph.name_to_id[updates["name"]] = node_id
-            node.name = updates["name"]
+            graph.name_to_id[new_name] = node_id
+            node.name = new_name
 
         if "type" in updates:
             node.type = updates["type"]

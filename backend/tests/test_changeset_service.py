@@ -321,6 +321,30 @@ class TestChangeSetService:
         assert len(result.nodes) == 0
         assert len(result.edges) == 0
 
+        # Verify changeset was persisted (regression test for P2 fix)
+        async with async_session_maker() as session2:
+            cs_result = await session2.execute(
+                select(ChangeSet).where(ChangeSet.id == result.changeset.id)
+            )
+            changeset = cs_result.scalar_one_or_none()
+            assert changeset is not None
+            assert changeset.summary == "No operations to apply"
+
+    @pytest.mark.asyncio
+    async def test_empty_operations_validates_model_exists(
+        self, db_session: AsyncSession
+    ):
+        """Test that empty operations still validates model existence."""
+        service = ChangeSetService(db_session)
+
+        with pytest.raises(ChangeSetApplicationError) as exc_info:
+            await service.apply_operations(
+                model_id="nonexistent-model-id",
+                operations=[],
+            )
+
+        assert "not found" in str(exc_info.value)
+
     @pytest.mark.asyncio
     async def test_validation_rejects_duplicate_node_name(
         self, db_session: AsyncSession, project_and_model: tuple[str, str]
@@ -429,3 +453,67 @@ class TestChangeSetService:
             assert changeset.status == "applied"
             assert len(changeset.operations) == 2
             assert "added 2 node" in changeset.summary.lower()
+
+    @pytest.mark.asyncio
+    async def test_rename_node_to_existing_name_fails(
+        self, db_session: AsyncSession, project_and_model: tuple[str, str]
+    ):
+        """Test that renaming a node to an existing name fails (P1 fix)."""
+        _, model_id = project_and_model
+        service = ChangeSetService(db_session)
+
+        # Add two nodes
+        operations1 = [
+            AddNodeOp(op="add_node", node=NodeSpec(type="service", name="NodeA")),
+            AddNodeOp(op="add_node", node=NodeSpec(type="service", name="NodeB")),
+        ]
+        await service.apply_operations(model_id=model_id, operations=operations1)
+
+        # Try to rename NodeA to NodeB (should fail)
+        async with async_session_maker() as session2:
+            service2 = ChangeSetService(session2)
+            operations2 = [
+                UpdateNodeOp(
+                    op="update_node",
+                    node_id="NodeA",
+                    updates={"name": "NodeB"},  # Conflict!
+                )
+            ]
+
+            with pytest.raises(ChangeSetApplicationError) as exc_info:
+                await service2.apply_operations(
+                    model_id=model_id, operations=operations2
+                )
+
+            assert "already exists" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_rename_node_to_same_name_succeeds(
+        self, db_session: AsyncSession, project_and_model: tuple[str, str]
+    ):
+        """Test that renaming a node to its own name is allowed (no-op)."""
+        _, model_id = project_and_model
+        service = ChangeSetService(db_session)
+
+        # Add a node
+        operations1 = [
+            AddNodeOp(op="add_node", node=NodeSpec(type="service", name="NodeA"))
+        ]
+        await service.apply_operations(model_id=model_id, operations=operations1)
+
+        # Rename NodeA to NodeA (should succeed)
+        async with async_session_maker() as session2:
+            service2 = ChangeSetService(session2)
+            operations2 = [
+                UpdateNodeOp(
+                    op="update_node",
+                    node_id="NodeA",
+                    updates={"name": "NodeA"},  # Same name
+                )
+            ]
+            result = await service2.apply_operations(
+                model_id=model_id, operations=operations2
+            )
+
+            assert len(result.nodes) == 1
+            assert result.nodes[0]["name"] == "NodeA"
