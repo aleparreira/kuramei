@@ -250,6 +250,7 @@ class ChangeSetService:
             description=node_spec.description,
             properties=_serialize_json(node_spec.properties),
             position=_serialize_json(position),
+            cost=_serialize_json(node_spec.cost),
         )
         self.db.add(node)
 
@@ -303,6 +304,8 @@ class ChangeSetService:
             node.tags = _serialize_json(updates["tags"])
         if "level" in updates:
             node.level = updates["level"]
+        if "cost" in updates:
+            node.cost = _serialize_json(updates["cost"])
 
     async def _delete_node(
         self, graph: GraphState, op: DeleteNodeOp, index: int

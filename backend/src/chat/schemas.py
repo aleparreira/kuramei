@@ -20,6 +20,10 @@ class NodeSpec(BaseModel):
     properties: dict[str, Any] | None = Field(
         None, description="Additional properties"
     )
+    cost: dict[str, Any] | None = Field(
+        None,
+        description="Cost info: {monthlyUSD: number, confidence: 'estimated'|'actual', breakdown?: {compute, storage, ...}}",
+    )
 
 
 class EdgeSpec(BaseModel):

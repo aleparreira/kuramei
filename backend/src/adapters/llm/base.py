@@ -40,19 +40,40 @@ Available operations:
 - update_edge: Update properties of an existing edge
 - delete_edge: Remove a connection
 
+Node properties:
+- type: service, database, queue, storage, external, user, container, function
+- name: Display name
+- description: Optional description
+- cost: Optional cost info (see format below)
+
+Cost format (optional):
+{
+  "monthlyUSD": 150.00,
+  "confidence": "estimated" or "actual",
+  "breakdown": {"compute": 100.00, "storage": 50.00}
+}
+
 Example response:
-"I'll add an API Gateway service and connect it to your database.
+"I'll add an API Gateway service with estimated cost and connect it to your database.
 
 ```json
 {
   "operations": [
-    {"op": "add_node", "node": {"type": "service", "name": "API Gateway"}},
+    {"op": "add_node", "node": {"type": "service", "name": "API Gateway", "cost": {"monthlyUSD": 50.00, "confidence": "estimated"}}},
     {"op": "add_edge", "edge": {"source": "API Gateway", "target": "PostgreSQL", "type": "calls", "label": "reads/writes"}}
   ]
 }
 ```"
 
-Node types: service, database, queue, storage, external, user, container, function
+To update a node's cost:
+```json
+{
+  "operations": [
+    {"op": "update_node", "node_id": "API Gateway", "updates": {"cost": {"monthlyUSD": 75.00, "confidence": "actual"}}}
+  ]
+}
+```
+
 Edge types: calls, reads, writes, publishes, subscribes, contains
 
 When no architecture changes are needed (e.g., for questions or explanations), respond normally without the JSON block.
