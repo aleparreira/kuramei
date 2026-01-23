@@ -1,0 +1,82 @@
+# RDS Database: {{ node.name }}
+# {{ node.description or 'No description provided' }}
+{% set engine = node.properties.get('engine', 'postgres') %}
+{% set engine_version = node.properties.get('engine_version', '15') %}
+{% set instance_class = node.properties.get('instance_class', 'db.t3.micro') %}
+{% set allocated_storage = node.properties.get('allocated_storage', 20) %}
+{% set db_name = node.properties.get('db_name', node.name | sanitize_name) %}
+{% set multi_az = node.properties.get('multi_az', False) %}
+{% set publicly_accessible = node.properties.get('publicly_accessible', False) %}
+
+resource "aws_db_instance" "{{ resource_name }}" {
+  identifier           = "{{ node.name | sanitize_name }}"
+  allocated_storage    = {{ allocated_storage }}
+  engine               = "{{ engine }}"
+  engine_version       = "{{ engine_version }}"
+  instance_class       = "{{ instance_class }}"
+  db_name              = "{{ db_name }}"
+  username             = "admin"
+  password             = random_password.{{ resource_name }}.result
+  parameter_group_name = "default.{{ engine }}{{ engine_version.split('.')[0] }}"
+  skip_final_snapshot  = true  # Set to false for production
+
+  multi_az               = {{ 'true' if multi_az else 'false' }}
+  publicly_accessible    = {{ 'true' if publicly_accessible else 'false' }}
+  vpc_security_group_ids = [aws_security_group.{{ resource_name }}.id]
+  # db_subnet_group_name   = aws_db_subnet_group.main.name  # TODO: Add subnet group
+
+  tags = {
+    Name = "{{ node.name }}"
+  }
+}
+
+resource "random_password" "{{ resource_name }}" {
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "aws_security_group" "{{ resource_name }}" {
+  name        = "{{ node.name | sanitize_name }}-sg"
+  description = "Security group for {{ node.name }}"
+  # vpc_id      = aws_vpc.main.id  # TODO: Add VPC reference
+
+  ingress {
+    from_port   = {{ 5432 if engine == 'postgres' else 3306 }}
+    to_port     = {{ 5432 if engine == 'postgres' else 3306 }}
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]  # TODO: Restrict to VPC CIDR
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "{{ node.name }}-sg"
+  }
+}
+
+# Store password in Secrets Manager
+resource "aws_secretsmanager_secret" "{{ resource_name }}" {
+  name        = "{{ node.name | sanitize_name }}-db-password"
+  description = "Password for {{ node.name }} database"
+
+  tags = {
+    Name = "{{ node.name }}"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "{{ resource_name }}" {
+  secret_id = aws_secretsmanager_secret.{{ resource_name }}.id
+  secret_string = jsonencode({
+    username = "admin"
+    password = random_password.{{ resource_name }}.result
+    host     = aws_db_instance.{{ resource_name }}.address
+    port     = aws_db_instance.{{ resource_name }}.port
+    dbname   = "{{ db_name }}"
+  })
+}

@@ -1,0 +1,78 @@
+# Lambda Function: {{ node.name }}
+# {{ node.description or 'No description provided' }}
+{% set runtime = node.properties.get('runtime', 'python3.11') %}
+{% set memory_size = node.properties.get('memory_size', 256) %}
+{% set timeout = node.properties.get('timeout', 30) %}
+{% set handler = node.properties.get('handler', 'main.handler') %}
+{% set architecture = node.properties.get('architecture', 'arm64') %}
+
+resource "aws_lambda_function" "{{ resource_name }}" {
+  function_name = "{{ node.name | sanitize_name }}"
+  role          = aws_iam_role.{{ resource_name }}.arn
+  handler       = "{{ handler }}"
+  runtime       = "{{ runtime }}"
+  architectures = ["{{ architecture }}"]
+
+  memory_size = {{ memory_size }}
+  timeout     = {{ timeout }}
+
+  # Placeholder - replace with actual deployment package
+  filename         = data.archive_file.{{ resource_name }}_placeholder.output_path
+  source_code_hash = data.archive_file.{{ resource_name }}_placeholder.output_base64sha256
+
+  environment {
+    variables = {
+      ENVIRONMENT = "production"
+    }
+  }
+
+  tags = {
+    Name = "{{ node.name }}"
+  }
+}
+
+# Placeholder deployment package
+data "archive_file" "{{ resource_name }}_placeholder" {
+  type        = "zip"
+  output_path = "${path.module}/{{ resource_name }}_placeholder.zip"
+
+  source {
+    content  = "def handler(event, context): return {'statusCode': 200}"
+    filename = "main.py"
+  }
+}
+
+resource "aws_iam_role" "{{ resource_name }}" {
+  name = "{{ node.name | sanitize_name }}-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "{{ node.name }}-role"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "{{ resource_name }}_basic" {
+  role       = aws_iam_role.{{ resource_name }}.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_cloudwatch_log_group" "{{ resource_name }}" {
+  name              = "/aws/lambda/{{ node.name | sanitize_name }}"
+  retention_in_days = 30
+
+  tags = {
+    Name = "{{ node.name }}"
+  }
+}
