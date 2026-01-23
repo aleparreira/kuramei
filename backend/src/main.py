@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.config import get_settings
-from src.database import close_db, init_db
+from src.database import close_db
 from src.models.router import router as models_router
 from src.projects.router import router as projects_router
 
@@ -18,9 +18,14 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Application lifespan handler for startup/shutdown."""
-    # Startup
-    await init_db()
+    """Application lifespan handler for startup/shutdown.
+
+    Note: Database schema is managed by Alembic migrations.
+    Run `alembic upgrade head` before starting the app.
+    The init_db() function (which uses create_all) is only for tests.
+    """
+    # Startup - just verify DB connectivity, don't create tables
+    # Tables should be created via: alembic upgrade head
     yield
     # Shutdown
     await close_db()
