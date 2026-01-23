@@ -41,7 +41,7 @@ interface CanvasState {
 }
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
-  currentLevel: 'L1', // Default to L1 (Domain view) per epic spec
+  currentLevel: null, // Default to All (show everything) for better initial experience
   navigationPath: [],
   currentParentId: null,
 

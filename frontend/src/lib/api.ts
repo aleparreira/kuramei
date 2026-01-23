@@ -201,13 +201,15 @@ export async function saveGraph(
 /**
  * Ensures a default project exists.
  * Lists existing projects and returns the first one, or creates a new one.
+ * Prioritizes non-default projects (like seed demo) over auto-created ones.
  */
 export async function ensureDefaultProject(): Promise<Project> {
   const projects = await listProjects();
 
-  // Use existing project if any
+  // Use existing project if any - prefer non-default projects
   if (projects.length > 0) {
-    return projects[0];
+    const nonDefault = projects.find(p => p.name !== DEFAULT_PROJECT_NAME);
+    return nonDefault || projects[0];
   }
 
   // Create default project
@@ -220,13 +222,15 @@ export async function ensureDefaultProject(): Promise<Project> {
 /**
  * Ensures a default model exists within a project.
  * Lists existing models and returns the first one, or creates a new one.
+ * Prioritizes non-default models (like seed demo) over auto-created ones.
  */
 export async function ensureDefaultModel(projectId: string): Promise<Model> {
   const models = await listModels(projectId);
 
-  // Use existing model if any
+  // Use existing model if any - prefer non-default models
   if (models.length > 0) {
-    return models[0];
+    const nonDefault = models.find(m => m.name !== DEFAULT_MODEL_NAME);
+    return nonDefault || models[0];
   }
 
   // Create default model

@@ -87,19 +87,21 @@ function nodeToBackend(node: Node): NodeData {
 
 /**
  * Parse cost data from backend format.
- * Backend may use 'monthlyUSD' or 'monthly' for the cost value.
+ * Backend may use 'amount', 'monthly', or 'monthlyUSD' for the cost value.
  * @param costData - Raw cost data from backend (JSON object)
  * @returns Parsed CostData or null
  */
 function parseCostData(costData: Record<string, unknown> | null | undefined): CostData | null {
   if (!costData) return null;
 
-  // Support both 'monthly' and 'monthlyUSD' field names from backend
-  const monthly = typeof costData.monthly === 'number'
-    ? costData.monthly
-    : typeof costData.monthlyUSD === 'number'
-      ? costData.monthlyUSD
-      : undefined;
+  // Support 'amount', 'monthly', and 'monthlyUSD' field names from backend
+  const monthly = typeof costData.amount === 'number'
+    ? costData.amount
+    : typeof costData.monthly === 'number'
+      ? costData.monthly
+      : typeof costData.monthlyUSD === 'number'
+        ? costData.monthlyUSD
+        : undefined;
   const breakdown = costData.breakdown && typeof costData.breakdown === 'object'
     ? costData.breakdown as Record<string, number>
     : undefined;
@@ -252,12 +254,19 @@ function FlowCanvas({
   }, []);
 
   // Filter nodes based on currentParentId (for drill-down)
+  // When parentId is null and not in drill-down mode, show all nodes
+  // When in drill-down mode (parentId set), show children of that parent
   const filterNodesForDisplay = useCallback(
-    (backendNodes: NodeData[], parentId: string | null) => {
+    (backendNodes: NodeData[], parentId: string | null, isDrillDownActive: boolean = false) => {
       // Build children info for all nodes
       const nodesWithChildren = getNodesWithChildrenInfo(backendNodes);
 
-      // Filter based on parent
+      // If not in drill-down mode, show all nodes
+      if (!isDrillDownActive && parentId === null) {
+        return nodesWithChildren.map((n) => nodeFromBackend(n, n.hasChildren));
+      }
+
+      // Filter based on parent (drill-down mode)
       const filtered = nodesWithChildren.filter((node) => {
         if (parentId === null) {
           // Show nodes without parent (root level)
@@ -293,7 +302,8 @@ function FlowCanvas({
       setAllBackendNodes(graph.nodes);
       setAllBackendEdges(graph.edges);
 
-      const displayNodes = filterNodesForDisplay(graph.nodes, currentParentId);
+      const isDrillDown = navigationPath.length > 0;
+      const displayNodes = filterNodesForDisplay(graph.nodes, currentParentId, isDrillDown);
       const visibleIds = new Set(displayNodes.map((n) => n.id));
       const displayEdges = filterEdgesForDisplay(graph.edges, visibleIds);
 
@@ -301,7 +311,7 @@ function FlowCanvas({
       setEdges(displayEdges);
       onSuccess('Architecture updated via chat');
     },
-    [setNodes, setEdges, onSuccess, currentParentId, filterNodesForDisplay, filterEdgesForDisplay, setAllBackendNodes, setAllBackendEdges]
+    [setNodes, setEdges, onSuccess, currentParentId, navigationPath, filterNodesForDisplay, filterEdgesForDisplay, setAllBackendNodes, setAllBackendEdges]
   );
 
   // Register the graph update handler with parent
@@ -320,7 +330,8 @@ function FlowCanvas({
         setAllBackendEdges(graph.edges);
 
         // Apply drill-down filter
-        const displayNodes = filterNodesForDisplay(graph.nodes, currentParentId);
+        const isDrillDown = navigationPath.length > 0;
+        const displayNodes = filterNodesForDisplay(graph.nodes, currentParentId, isDrillDown);
         const visibleIds = new Set(displayNodes.map((n) => n.id));
         const displayEdges = filterEdgesForDisplay(graph.edges, visibleIds);
 
@@ -346,7 +357,7 @@ function FlowCanvas({
     }
 
     load();
-  }, [modelId, currentLevel, setNodes, setEdges, setViewport, onError, onSuccess, currentParentId, filterNodesForDisplay, filterEdgesForDisplay]);
+  }, [modelId, currentLevel, setNodes, setEdges, setViewport, onError, onSuccess, currentParentId, navigationPath, filterNodesForDisplay, filterEdgesForDisplay]);
 
   // Handle level toggle
   const handleLevelChange = useCallback(
@@ -378,8 +389,8 @@ function FlowCanvas({
 
       pushNavigation(navItem);
 
-      // Filter and display children
-      const displayNodes = filterNodesForDisplay(allBackendNodes, node.id);
+      // Filter and display children (drill-down mode = true)
+      const displayNodes = filterNodesForDisplay(allBackendNodes, node.id, true);
       const visibleIds = new Set(displayNodes.map((n) => n.id));
       const displayEdges = filterEdgesForDisplay(allBackendEdges, visibleIds);
 
@@ -400,8 +411,8 @@ function FlowCanvas({
 
       popToNavigation(index);
 
-      // Filter to show children of the selected node
-      const displayNodes = filterNodesForDisplay(allBackendNodes, targetItem.id);
+      // Filter to show children of the selected node (drill-down mode = true)
+      const displayNodes = filterNodesForDisplay(allBackendNodes, targetItem.id, true);
       const visibleIds = new Set(displayNodes.map((n) => n.id));
       const displayEdges = filterEdgesForDisplay(allBackendEdges, visibleIds);
 
@@ -417,8 +428,8 @@ function FlowCanvas({
   const handleBreadcrumbHome = useCallback(() => {
     clearNavigation();
 
-    // Show root nodes (no parent)
-    const displayNodes = filterNodesForDisplay(allBackendNodes, null);
+    // Show all nodes (exit drill-down mode)
+    const displayNodes = filterNodesForDisplay(allBackendNodes, null, false);
     const visibleIds = new Set(displayNodes.map((n) => n.id));
     const displayEdges = filterEdgesForDisplay(allBackendEdges, visibleIds);
 
