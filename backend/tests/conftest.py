@@ -5,8 +5,9 @@ import os
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-# Use in-memory SQLite for tests (set before importing app)
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+# Use shared in-memory SQLite for tests (set before importing app)
+# The ?cache=shared option allows multiple connections to share the same database
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:?cache=shared"
 
 from src.main import app  # noqa: E402
 

@@ -62,8 +62,18 @@ class NodeBase(BaseModel):
     cost: dict[str, Any] | None = None
 
 
+class NodeCreateDirect(NodeBase):
+    """Schema for creating a node directly (with explicit model_id)."""
+
+    model_id: str
+
+
 class NodeCreate(NodeBase):
-    """Schema for creating a node."""
+    """Schema for creating a node within a graph context.
+
+    Note: model_id is provided by the URL path parameter in graph endpoints,
+    not in the request body. This schema is used within GraphData.
+    """
 
     pass
 
@@ -106,8 +116,18 @@ class EdgeBase(BaseModel):
     properties: dict[str, Any] | None = None
 
 
+class EdgeCreateDirect(EdgeBase):
+    """Schema for creating an edge directly (with explicit model_id)."""
+
+    model_id: str
+
+
 class EdgeCreate(EdgeBase):
-    """Schema for creating an edge."""
+    """Schema for creating an edge within a graph context.
+
+    Note: model_id is provided by the URL path parameter in graph endpoints,
+    not in the request body. This schema is used within GraphData.
+    """
 
     pass
 
@@ -136,7 +156,11 @@ class EdgeResponse(EdgeBase):
 
 
 class GraphData(BaseModel):
-    """Schema for full graph data (nodes + edges + viewport)."""
+    """Schema for full graph data (nodes + edges + viewport).
+
+    Used with PUT /models/{model_id}/graph endpoint.
+    The model_id is taken from the URL path, not included in node/edge objects.
+    """
 
     nodes: list[NodeCreate]
     edges: list[EdgeCreate]
