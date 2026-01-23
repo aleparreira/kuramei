@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import {
   ReactFlow,
+  ReactFlowProvider,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   addEdge,
   Background,
   Controls,
@@ -36,10 +38,10 @@ const canvasConfig = {
 let nodeId = 0;
 const getNextId = () => `node_${++nodeId}`;
 
-export default function Flow() {
+function FlowCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const { screenToFlowPosition } = useReactFlow();
 
   const onConnect: OnConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -48,14 +50,12 @@ export default function Flow() {
 
   const onDoubleClick = useCallback(
     (event: React.MouseEvent) => {
-      // Get position relative to the React Flow pane
-      const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
-      if (!reactFlowBounds) return;
-
-      const position = {
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
-      };
+      // Convert screen coordinates to flow coordinates
+      // This accounts for zoom and pan transformations
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
 
       const newNode: Node = {
         id: getNextId(),
@@ -66,39 +66,48 @@ export default function Flow() {
 
       setNodes((nds) => [...nds, newNode]);
     },
-    [setNodes]
+    [setNodes, screenToFlowPosition]
   );
 
   return (
-    <div ref={reactFlowWrapper} className="h-full w-full" onDoubleClick={onDoubleClick}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        defaultViewport={canvasConfig.defaultViewport}
-        minZoom={canvasConfig.minZoom}
-        maxZoom={canvasConfig.maxZoom}
-        snapToGrid={canvasConfig.snapToGrid}
-        snapGrid={canvasConfig.snapGrid}
-        fitView={canvasConfig.fitView}
-        fitViewOptions={canvasConfig.fitViewOptions}
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      onDoubleClick={onDoubleClick}
+      defaultViewport={canvasConfig.defaultViewport}
+      minZoom={canvasConfig.minZoom}
+      maxZoom={canvasConfig.maxZoom}
+      snapToGrid={canvasConfig.snapToGrid}
+      snapGrid={canvasConfig.snapGrid}
+      fitView={canvasConfig.fitView}
+      fitViewOptions={canvasConfig.fitViewOptions}
+      className="bg-background"
+    >
+      <Background
+        variant={BackgroundVariant.Dots}
+        gap={16}
+        size={1}
         className="bg-background"
-      >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={16}
-          size={1}
-          className="bg-background"
-        />
-        <Controls className="!bg-card !border-border !shadow-md" />
-        <MiniMap
-          className="!bg-card !border-border"
-          nodeColor="#ff4c60"
-          maskColor="rgba(69, 67, 96, 0.1)"
-        />
-      </ReactFlow>
+      />
+      <Controls className="!bg-card !border-border !shadow-md" />
+      <MiniMap
+        className="!bg-card !border-border"
+        nodeColor="#ff4c60"
+        maskColor="rgba(69, 67, 96, 0.1)"
+      />
+    </ReactFlow>
+  );
+}
+
+export default function Flow() {
+  return (
+    <div className="h-full w-full">
+      <ReactFlowProvider>
+        <FlowCanvas />
+      </ReactFlowProvider>
     </div>
   );
 }
