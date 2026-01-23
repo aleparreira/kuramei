@@ -7,8 +7,56 @@
 
 import { memo, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { DollarSign } from 'lucide-react';
+import {
+  DollarSign,
+  Container,
+  Database,
+  MessageSquare,
+  HardDrive,
+  Zap,
+  Network,
+  Globe,
+  Layers,
+  ExternalLink,
+  Box,
+  Briefcase,
+  AppWindow,
+  Key,
+  Lock,
+  Server,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+/**
+ * Icon mapping for node types.
+ * Maps backend node types to lucide-react icons.
+ */
+const nodeTypeIcons: Record<string, typeof Box> = {
+  system: Server,
+  service: Container,
+  database: Database,
+  queue: MessageSquare,
+  bucket: HardDrive,
+  function: Zap,
+  job: Briefcase,
+  ui: AppWindow,
+  external_system: ExternalLink,
+  gateway: Network,
+  vpc: Globe,
+  subnet: Layers,
+  identity: Key,
+  secret: Lock,
+};
+
+/**
+ * Get icon component for a node type.
+ * @param nodeType - The type of node
+ * @returns Icon component from lucide-react
+ */
+function getNodeIcon(nodeType?: string): typeof Box {
+  if (!nodeType) return Box;
+  return nodeTypeIcons[nodeType] || Box;
+}
 
 export interface CostData {
   /** Monthly cost value (supports both 'monthly' and 'monthlyUSD' from backend) */
@@ -24,6 +72,8 @@ export interface CostNodeData extends Record<string, unknown> {
   cost?: CostData | null;
   level?: string | null;
   backendParentId?: string | null;
+  /** Original node type from backend (service, database, queue, etc.) */
+  nodeType?: string | null;
 }
 
 /**
@@ -139,6 +189,10 @@ function CostNodeComponent(props: NodeProps) {
   const cost = nodeData?.cost;
   const label = nodeData?.label;
   const level = nodeData?.level;
+  const nodeType = nodeData?.nodeType;
+
+  // Get icon component based on node type
+  const Icon = getNodeIcon(nodeType ?? undefined);
 
   return (
     <div
@@ -160,9 +214,12 @@ function CostNodeComponent(props: NodeProps) {
       />
 
       <div className="flex flex-col gap-1">
-        {/* Node label */}
-        <div className="font-medium text-sm truncate" title={label}>
-          {label || 'Node'}
+        {/* Node header with icon and label */}
+        <div className="flex items-center gap-1.5">
+          <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="font-medium text-sm truncate" title={label}>
+            {label || 'Node'}
+          </div>
         </div>
 
         {/* Level indicator */}

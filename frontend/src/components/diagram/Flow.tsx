@@ -17,12 +17,14 @@ import {
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { MessageSquare, Layers, DollarSign } from 'lucide-react';
+import { MessageSquare, Layers, DollarSign, Download, Sun, Moon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ChatPanel } from '@/components/chat';
 import { Breadcrumbs } from '@/components/diagram/Breadcrumbs';
+import { ExportModal } from '@/components/export';
 import { CostNode, formatCurrency, type CostData } from '@/components/diagram/CostNode';
+import { edgeTypes } from '@/components/diagram/AnimatedEdge';
 import { useChat, type ChatMessage } from '@/hooks/useChat';
 import {
   loadGraph,
@@ -36,6 +38,7 @@ import {
   type Viewport,
 } from '@/lib/api';
 import { useCanvasStore, type ZoomLevel, type NavigationItem } from '@/stores/canvasStore';
+import { useTheme } from '@/context';
 
 // Config from DESIGN-SYSTEM.md
 const canvasConfig = {
@@ -123,15 +126,16 @@ function parseCostData(costData: Record<string, unknown> | null | undefined): Co
 function nodeFromBackend(node: NodeData, hasChildren: boolean = false): Node {
   const cost = parseCostData(node.cost);
   // Use costNode type for all nodes (it handles cost display gracefully)
-  const nodeType = 'costNode';
+  const reactFlowNodeType = 'costNode';
 
   return {
     id: node.id,
-    type: nodeType,
+    type: reactFlowNodeType,
     position: { x: node.position.x, y: node.position.y },
     data: {
       label: node.name,
       level: node.level,
+      nodeType: node.type, // Original backend type (service, database, etc.)
       hasChildren,
       backendParentId: node.parent_node_id,
       cost,
@@ -160,15 +164,23 @@ function edgeToBackend(edge: Edge): EdgeData {
 
 /**
  * Convert backend edge to React Flow format.
+ * Uses the backend edge type as the React Flow type to route to the correct edge component.
+ * Also passes the backend type in data for styling decisions within AnimatedEdge.
  */
 function edgeFromBackend(edge: EdgeData): Edge {
+  // Use 'animated' as default type if not specified, which triggers AnimatedEdge
+  const edgeType = edge.type && edge.type !== 'default' ? edge.type : 'animated';
+
   return {
     id: edge.id,
-    type: edge.type === 'default' ? undefined : edge.type,
+    type: edgeType,
     source: edge.source_node_id,
     target: edge.target_node_id,
     label: edge.label || undefined,
-    data: edge.properties || {},
+    data: {
+      ...(edge.properties || {}),
+      backendType: edge.type, // Pass original backend type for styling
+    },
   };
 }
 
@@ -225,6 +237,7 @@ function FlowCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const { screenToFlowPosition, setViewport, toObject, fitView } = useReactFlow();
 
   // Store all nodes from backend (unfiltered) for child lookups
@@ -239,6 +252,29 @@ function FlowCanvas({
   const pushNavigation = useCanvasStore((state) => state.pushNavigation);
   const popToNavigation = useCanvasStore((state) => state.popToNavigation);
   const clearNavigation = useCanvasStore((state) => state.clearNavigation);
+
+  // Theme context for dark mode toggle
+  const { theme, setTheme, resolvedTheme } = useTheme();
+
+  // Toggle theme between light, dark, and system
+  const handleToggleTheme = useCallback(() => {
+    // Cycle through: light -> dark -> system -> light
+    if (theme === 'light') {
+      setTheme('dark');
+    } else if (theme === 'dark') {
+      setTheme('system');
+    } else {
+      setTheme('light');
+    }
+  }, [theme, setTheme]);
+
+  // Get theme button title
+  const getThemeTitle = () => {
+    if (theme === 'system') {
+      return `Theme: System (${resolvedTheme})`;
+    }
+    return `Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`;
+  };
 
   // Helper to check if a node has children
   const getNodesWithChildrenInfo = useCallback((backendNodes: NodeData[]) => {
@@ -538,6 +574,7 @@ function FlowCanvas({
       nodes={enhancedNodes}
       edges={edges}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
@@ -576,6 +613,18 @@ function FlowCanvas({
       )}
       <Panel position="top-right" className="flex gap-2">
         <Button
+          variant="outline"
+          onClick={handleToggleTheme}
+          size="icon"
+          title={getThemeTitle()}
+        >
+          {resolvedTheme === 'dark' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
           variant={isChatOpen ? 'default' : 'outline'}
           onClick={onToggleChat}
           size="icon"
@@ -586,10 +635,19 @@ function FlowCanvas({
         <Button variant="outline" onClick={handleAddNode}>
           + Add Node
         </Button>
+        <Button variant="outline" onClick={() => setIsExportOpen(true)}>
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </Panel>
+      <ExportModal
+        modelId={modelId}
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+      />
       <Panel position="top-left" className="flex flex-col gap-2">
         <div className="flex gap-1 items-center">
           {(['L0', 'L1', 'L2', 'L3'] as const).map((level) => (

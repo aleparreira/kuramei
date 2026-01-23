@@ -1,0 +1,39 @@
+# Subnet: {{ node.name }}
+# {{ node.description or 'No description provided' }}
+{% set is_public = node.properties.get('public', False) %}
+{% set vpc_ref = node.properties.get('vpc_ref', 'main') %}
+{% set az_suffix = node.properties.get('availability_zone_suffix', 'a') %}
+
+resource "aws_subnet" "{{ resource_name }}" {
+  vpc_id                  = aws_vpc.{{ vpc_ref }}.id
+  cidr_block              = "{{ node.properties.get('cidr_block', '10.0.1.0/24') }}"
+  availability_zone       = "${data.aws_region.current.name}{{ az_suffix }}"
+  map_public_ip_on_launch = {{ 'true' if is_public else 'false' }}
+
+  tags = {
+    Name = "{{ node.name }}"
+    Type = "{{ 'public' if is_public else 'private' }}"
+  }
+}
+
+{% if is_public %}
+resource "aws_route_table" "{{ resource_name }}" {
+  vpc_id = aws_vpc.{{ vpc_ref }}.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.{{ vpc_ref }}.id
+  }
+
+  tags = {
+    Name = "{{ node.name }}-rt"
+  }
+}
+
+resource "aws_route_table_association" "{{ resource_name }}" {
+  subnet_id      = aws_subnet.{{ resource_name }}.id
+  route_table_id = aws_route_table.{{ resource_name }}.id
+}
+{% endif %}
+
+data "aws_region" "current" {}

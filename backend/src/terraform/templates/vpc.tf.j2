@@ -1,0 +1,20 @@
+# VPC: {{ node.name }}
+# {{ node.description or 'No description provided' }}
+
+resource "aws_vpc" "{{ resource_name }}" {
+  cidr_block           = "{{ node.properties.get('cidr_block', '10.0.0.0/16') }}"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = {
+    Name = "{{ node.name }}"
+  }
+}
+
+resource "aws_internet_gateway" "{{ resource_name }}" {
+  vpc_id = aws_vpc.{{ resource_name }}.id
+
+  tags = {
+    Name = "{{ node.name }}-igw"
+  }
+}
