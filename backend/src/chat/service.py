@@ -14,13 +14,15 @@ from src.adapters.llm.base import ARCHITECTURE_SYSTEM_PROMPT, LLMMessage
 from src.chat.changeset_service import ChangeSetApplicationError, ChangeSetService
 from src.chat.parser import parse_operations
 from src.chat.schemas import Operation
+from src.chat.serializers import serialize_edges, serialize_nodes
 from src.config import get_settings
 from src.models.models import Conversation, Edge, Message, Model, Node
 
 logger = logging.getLogger(__name__)
 
-# Number of recent messages to include in LLM context
-CONTEXT_MESSAGE_LIMIT = 10
+# Number of recent messages to include in LLM context (including new user message)
+# We fetch 9 to leave room for the new user message
+CONTEXT_MESSAGE_LIMIT = 9
 
 
 @dataclass
@@ -159,8 +161,8 @@ class ChatService:
         edges = list(edges_result.scalars().all())
 
         return {
-            "nodes": self.changeset_service._serialize_nodes(nodes),
-            "edges": self.changeset_service._serialize_edges(edges),
+            "nodes": serialize_nodes(nodes),
+            "edges": serialize_edges(edges),
         }
 
     async def _update_conversation_timestamp(

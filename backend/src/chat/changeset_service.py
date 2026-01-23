@@ -19,6 +19,7 @@ from src.chat.schemas import (
     UpdateEdgeOp,
     UpdateNodeOp,
 )
+from src.chat.serializers import serialize_edges, serialize_nodes
 from src.models.models import ChangeSet, Edge, Model, Node
 
 logger = logging.getLogger(__name__)
@@ -497,40 +498,15 @@ class ChangeSetService:
         return op.model_dump()
 
     def _serialize_nodes(self, nodes: list[Node]) -> list[dict[str, Any]]:
-        """Serialize nodes for the response."""
-        return [
-            {
-                "id": n.id,
-                "model_id": n.model_id,
-                "type": n.type,
-                "name": n.name,
-                "description": n.description,
-                "tags": _parse_json(n.tags),
-                "properties": _parse_json(n.properties),
-                "level": n.level,
-                "parent_node_id": n.parent_node_id,
-                "position": _parse_json(n.position),
-                "size": _parse_json(n.size),
-                "cost": _parse_json(n.cost),
-                "created_at": n.created_at.isoformat() if n.created_at else None,
-                "updated_at": n.updated_at.isoformat() if n.updated_at else None,
-            }
-            for n in nodes
-        ]
+        """Serialize nodes for the response.
+
+        Uses shared serializer from chat.serializers module.
+        """
+        return serialize_nodes(nodes)
 
     def _serialize_edges(self, edges: list[Edge]) -> list[dict[str, Any]]:
-        """Serialize edges for the response."""
-        return [
-            {
-                "id": e.id,
-                "model_id": e.model_id,
-                "type": e.type,
-                "source_node_id": e.source_node_id,
-                "target_node_id": e.target_node_id,
-                "label": e.label,
-                "properties": _parse_json(e.properties),
-                "created_at": e.created_at.isoformat() if e.created_at else None,
-                "updated_at": e.updated_at.isoformat() if e.updated_at else None,
-            }
-            for e in edges
-        ]
+        """Serialize edges for the response.
+
+        Uses shared serializer from chat.serializers module.
+        """
+        return serialize_edges(edges)
