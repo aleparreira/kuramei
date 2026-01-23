@@ -116,8 +116,9 @@ class AnthropicAdapter(LLMAdapter):
             logger.error(f"Anthropic rate limit: {e}")
             raise LLMRateLimitError("Anthropic rate limit exceeded") from e
         except APIStatusError as e:
-            logger.error(f"Anthropic API error: {e}")
-            raise LLMAPIError(f"Anthropic API error: {e.message}") from e
+            error_detail = getattr(e, "message", str(e))
+            logger.error(f"Anthropic API error: {error_detail}")
+            raise LLMAPIError(f"Anthropic API error: {error_detail}") from e
 
     async def chat_stream(
         self,
@@ -159,5 +160,6 @@ class AnthropicAdapter(LLMAdapter):
             logger.error(f"Anthropic rate limit during stream: {e}")
             raise LLMRateLimitError("Anthropic rate limit exceeded") from e
         except APIStatusError as e:
-            logger.error(f"Anthropic API error during stream: {e}")
-            raise LLMAPIError(f"Anthropic API error: {e.message}") from e
+            error_detail = getattr(e, "message", str(e))
+            logger.error(f"Anthropic API error during stream: {error_detail}")
+            raise LLMAPIError(f"Anthropic API error: {error_detail}") from e
