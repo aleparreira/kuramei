@@ -17,10 +17,11 @@ import {
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Layers } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ChatPanel } from '@/components/chat';
+import { Breadcrumbs } from '@/components/diagram/Breadcrumbs';
 import { useChat, type ChatMessage } from '@/hooks/useChat';
 import {
   loadGraph,
@@ -33,7 +34,7 @@ import {
   type EdgeData,
   type Viewport,
 } from '@/lib/api';
-import { useCanvasStore, type ZoomLevel } from '@/stores/canvasStore';
+import { useCanvasStore, type ZoomLevel, type NavigationItem } from '@/stores/canvasStore';
 
 // Config from DESIGN-SYSTEM.md
 const canvasConfig = {
@@ -80,14 +81,19 @@ function nodeToBackend(node: Node): NodeData {
 
 /**
  * Convert backend node to React Flow format.
+ * @param node - Backend node data
+ * @param hasChildren - Whether this node has child nodes
  */
-function nodeFromBackend(node: NodeData): Node {
+function nodeFromBackend(node: NodeData, hasChildren: boolean = false): Node {
   return {
     id: node.id,
     type: node.type === 'default' ? 'default' : node.type,
     position: { x: node.position.x, y: node.position.y },
     data: {
       label: node.name,
+      level: node.level,
+      hasChildren,
+      backendParentId: node.parent_node_id,
       ...(node.properties || {}),
     },
     parentId: node.parent_node_id || undefined,
@@ -166,21 +172,85 @@ function FlowCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { screenToFlowPosition, setViewport, toObject } = useReactFlow();
+  const { screenToFlowPosition, setViewport, toObject, fitView } = useReactFlow();
 
-  // Zustand store for semantic zoom
+  // Store all nodes from backend (unfiltered) for child lookups
+  const [allBackendNodes, setAllBackendNodes] = useState<NodeData[]>([]);
+  const [allBackendEdges, setAllBackendEdges] = useState<EdgeData[]>([]);
+
+  // Zustand store for semantic zoom and navigation
   const currentLevel = useCanvasStore((state) => state.currentLevel);
   const setLevel = useCanvasStore((state) => state.setLevel);
+  const navigationPath = useCanvasStore((state) => state.navigationPath);
+  const currentParentId = useCanvasStore((state) => state.currentParentId);
+  const pushNavigation = useCanvasStore((state) => state.pushNavigation);
+  const popToNavigation = useCanvasStore((state) => state.popToNavigation);
+  const clearNavigation = useCanvasStore((state) => state.clearNavigation);
+
+  // Helper to check if a node has children
+  const getNodesWithChildrenInfo = useCallback((backendNodes: NodeData[]) => {
+    const parentIds = new Set(
+      backendNodes
+        .filter((n) => n.parent_node_id)
+        .map((n) => n.parent_node_id as string)
+    );
+    return backendNodes.map((node) => ({
+      ...node,
+      hasChildren: parentIds.has(node.id),
+    }));
+  }, []);
+
+  // Filter nodes based on currentParentId (for drill-down)
+  const filterNodesForDisplay = useCallback(
+    (backendNodes: NodeData[], parentId: string | null) => {
+      // Build children info for all nodes
+      const nodesWithChildren = getNodesWithChildrenInfo(backendNodes);
+
+      // Filter based on parent
+      const filtered = nodesWithChildren.filter((node) => {
+        if (parentId === null) {
+          // Show nodes without parent (root level)
+          return !node.parent_node_id;
+        }
+        // Show children of the current parent
+        return node.parent_node_id === parentId;
+      });
+
+      return filtered.map((n) => nodeFromBackend(n, n.hasChildren));
+    },
+    [getNodesWithChildrenInfo]
+  );
+
+  // Filter edges to only show those connecting visible nodes
+  const filterEdgesForDisplay = useCallback(
+    (backendEdges: EdgeData[], visibleNodeIds: Set<string>) => {
+      return backendEdges
+        .filter(
+          (edge) =>
+            visibleNodeIds.has(edge.source_node_id) &&
+            visibleNodeIds.has(edge.target_node_id)
+        )
+        .map(edgeFromBackend);
+    },
+    []
+  );
 
   // Handle graph updates from chat (SSE)
   const handleGraphUpdate = useCallback(
     (graph: GraphResponse) => {
       console.log('[FlowCanvas] Applying graph update from chat');
-      setNodes(graph.nodes.map(nodeFromBackend));
-      setEdges(graph.edges.map(edgeFromBackend));
+      setAllBackendNodes(graph.nodes);
+      setAllBackendEdges(graph.edges);
+
+      const displayNodes = filterNodesForDisplay(graph.nodes, currentParentId);
+      const visibleIds = new Set(displayNodes.map((n) => n.id));
+      const displayEdges = filterEdgesForDisplay(graph.edges, visibleIds);
+
+      setNodes(displayNodes);
+      setEdges(displayEdges);
       onSuccess('Architecture updated via chat');
     },
-    [setNodes, setEdges, onSuccess]
+    [setNodes, setEdges, onSuccess, currentParentId, filterNodesForDisplay, filterEdgesForDisplay, setAllBackendNodes, setAllBackendEdges]
   );
 
   // Register the graph update handler with parent
@@ -194,8 +264,18 @@ function FlowCanvas({
       setIsLoading(true);
       try {
         const graph = await loadGraph(modelId, { level: currentLevel });
-        setNodes(graph.nodes.map(nodeFromBackend));
-        setEdges(graph.edges.map(edgeFromBackend));
+        // Store all backend data
+        setAllBackendNodes(graph.nodes);
+        setAllBackendEdges(graph.edges);
+
+        // Apply drill-down filter
+        const displayNodes = filterNodesForDisplay(graph.nodes, currentParentId);
+        const visibleIds = new Set(displayNodes.map((n) => n.id));
+        const displayEdges = filterEdgesForDisplay(graph.edges, visibleIds);
+
+        setNodes(displayNodes);
+        setEdges(displayEdges);
+
         if (graph.viewport) {
           setViewport(graph.viewport);
         }
@@ -215,15 +295,87 @@ function FlowCanvas({
     }
 
     load();
-  }, [modelId, currentLevel, setNodes, setEdges, setViewport, onError, onSuccess]);
+  }, [modelId, currentLevel, setNodes, setEdges, setViewport, onError, onSuccess, currentParentId, filterNodesForDisplay, filterEdgesForDisplay]);
 
   // Handle level toggle
   const handleLevelChange = useCallback(
     (level: ZoomLevel | null) => {
       setLevel(level);
+      // Clear navigation when level changes
+      clearNavigation();
     },
-    [setLevel]
+    [setLevel, clearNavigation]
   );
+
+  // Handle node double-click for drill-down
+  const handleNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      // Check if node has children
+      if (!node.data?.hasChildren) {
+        return; // No drill-down for leaf nodes
+      }
+
+      // Find the backend node to get full info
+      const backendNode = allBackendNodes.find((n) => n.id === node.id);
+      if (!backendNode) return;
+
+      const navItem: NavigationItem = {
+        id: node.id,
+        name: String(node.data?.label || 'Unknown'),
+        level: String(backendNode.level || 'N/A'),
+      };
+
+      pushNavigation(navItem);
+
+      // Filter and display children
+      const displayNodes = filterNodesForDisplay(allBackendNodes, node.id);
+      const visibleIds = new Set(displayNodes.map((n) => n.id));
+      const displayEdges = filterEdgesForDisplay(allBackendEdges, visibleIds);
+
+      setNodes(displayNodes);
+      setEdges(displayEdges);
+
+      // Fit view to show all children
+      setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+    },
+    [allBackendNodes, allBackendEdges, pushNavigation, filterNodesForDisplay, filterEdgesForDisplay, setNodes, setEdges, fitView]
+  );
+
+  // Handle breadcrumb navigation
+  const handleBreadcrumbNavigate = useCallback(
+    (index: number) => {
+      const targetItem = navigationPath[index];
+      if (!targetItem) return;
+
+      popToNavigation(index);
+
+      // Filter to show children of the selected node
+      const displayNodes = filterNodesForDisplay(allBackendNodes, targetItem.id);
+      const visibleIds = new Set(displayNodes.map((n) => n.id));
+      const displayEdges = filterEdgesForDisplay(allBackendEdges, visibleIds);
+
+      setNodes(displayNodes);
+      setEdges(displayEdges);
+
+      setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+    },
+    [navigationPath, popToNavigation, allBackendNodes, allBackendEdges, filterNodesForDisplay, filterEdgesForDisplay, setNodes, setEdges, fitView]
+  );
+
+  // Handle breadcrumb "Home" click
+  const handleBreadcrumbHome = useCallback(() => {
+    clearNavigation();
+
+    // Show root nodes (no parent)
+    const displayNodes = filterNodesForDisplay(allBackendNodes, null);
+    const visibleIds = new Set(displayNodes.map((n) => n.id));
+    const displayEdges = filterEdgesForDisplay(allBackendEdges, visibleIds);
+
+    setNodes(displayNodes);
+    setEdges(displayEdges);
+
+    setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+  }, [clearNavigation, allBackendNodes, allBackendEdges, filterNodesForDisplay, filterEdgesForDisplay, setNodes, setEdges, fitView]);
 
   // Handle edge connections
   const onConnect: OnConnect = useCallback(
@@ -301,14 +453,22 @@ function FlowCanvas({
     );
   }
 
+  // Enhance nodes with hasChildren visual indicator
+  const enhancedNodes = nodes.map((node) => ({
+    ...node,
+    // Add a subtle className for nodes with children (can be styled in CSS)
+    className: node.data?.hasChildren ? 'has-children' : undefined,
+  }));
+
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={enhancedNodes}
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       onDoubleClick={onDoubleClick}
+      onNodeDoubleClick={handleNodeDoubleClick}
       defaultViewport={canvasConfig.defaultViewport}
       minZoom={canvasConfig.minZoom}
       maxZoom={canvasConfig.maxZoom}
@@ -327,9 +487,19 @@ function FlowCanvas({
       <Controls className="!bg-card !border-border !shadow-md" />
       <MiniMap
         className="!bg-card !border-border"
-        nodeColor="#ff4c60"
+        nodeColor={(node) => (node.data?.hasChildren ? '#65ebe7' : '#ff4c60')}
         maskColor="rgba(69, 67, 96, 0.1)"
       />
+      {/* Breadcrumbs for drill-down navigation */}
+      {navigationPath.length > 0 && (
+        <Panel position="top-center">
+          <Breadcrumbs
+            path={navigationPath}
+            onNavigate={handleBreadcrumbNavigate}
+            onHome={handleBreadcrumbHome}
+          />
+        </Panel>
+      )}
       <Panel position="top-right" className="flex gap-2">
         <Button
           variant={isChatOpen ? 'default' : 'outline'}
@@ -346,28 +516,35 @@ function FlowCanvas({
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </Panel>
-      <Panel position="top-left" className="flex gap-1">
-        {(['L0', 'L1', 'L2', 'L3'] as const).map((level) => (
+      <Panel position="top-left" className="flex flex-col gap-2">
+        <div className="flex gap-1">
+          {(['L0', 'L1', 'L2', 'L3'] as const).map((level) => (
+            <Button
+              key={level}
+              variant={currentLevel === level ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleLevelChange(level)}
+              title={getLevelDescription(level)}
+              className="min-w-[40px]"
+            >
+              {level}
+            </Button>
+          ))}
           <Button
-            key={level}
-            variant={currentLevel === level ? 'default' : 'outline'}
+            variant={currentLevel === null ? 'default' : 'outline'}
             size="sm"
-            onClick={() => handleLevelChange(level)}
-            title={getLevelDescription(level)}
+            onClick={() => handleLevelChange(null)}
+            title="Show all levels"
             className="min-w-[40px]"
           >
-            {level}
+            All
           </Button>
-        ))}
-        <Button
-          variant={currentLevel === null ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => handleLevelChange(null)}
-          title="Show all levels"
-          className="min-w-[40px]"
-        >
-          All
-        </Button>
+        </div>
+        {/* Legend for drill-down */}
+        <div className="text-xs text-muted-foreground flex items-center gap-1">
+          <Layers className="h-3 w-3" />
+          <span>Double-click nodes with children to drill-down</span>
+        </div>
       </Panel>
     </ReactFlow>
   );

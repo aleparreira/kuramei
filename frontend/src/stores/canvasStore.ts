@@ -21,6 +21,9 @@ interface CanvasState {
   /** Breadcrumb path for drill-down navigation */
   navigationPath: NavigationItem[];
 
+  /** Current parent node ID for drill-down filtering (null = show root nodes) */
+  currentParentId: string | null;
+
   /** Set the current zoom level and trigger graph reload */
   setLevel: (level: ZoomLevel | null) => void;
 
@@ -30,13 +33,17 @@ interface CanvasState {
   /** Navigate back to a specific point in the path */
   popToNavigation: (index: number) => void;
 
-  /** Clear navigation path */
+  /** Clear navigation path and go back to root */
   clearNavigation: () => void;
+
+  /** Get the current parent ID from navigation path (last item or null) */
+  getCurrentParentId: () => string | null;
 }
 
-export const useCanvasStore = create<CanvasState>((set) => ({
+export const useCanvasStore = create<CanvasState>((set, get) => ({
   currentLevel: 'L1', // Default to L1 (Domain view) per epic spec
   navigationPath: [],
+  currentParentId: null,
 
   setLevel: (level) => {
     set({ currentLevel: level });
@@ -45,16 +52,26 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   pushNavigation: (node) => {
     set((state) => ({
       navigationPath: [...state.navigationPath, node],
+      currentParentId: node.id,
     }));
   },
 
   popToNavigation: (index) => {
-    set((state) => ({
-      navigationPath: state.navigationPath.slice(0, index + 1),
-    }));
+    set((state) => {
+      const newPath = state.navigationPath.slice(0, index + 1);
+      return {
+        navigationPath: newPath,
+        currentParentId: newPath.length > 0 ? newPath[newPath.length - 1].id : null,
+      };
+    });
   },
 
   clearNavigation: () => {
-    set({ navigationPath: [] });
+    set({ navigationPath: [], currentParentId: null });
+  },
+
+  getCurrentParentId: () => {
+    const state = get();
+    return state.currentParentId;
   },
 }));
