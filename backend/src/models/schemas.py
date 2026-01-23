@@ -18,9 +18,19 @@ class ModelBase(BaseModel):
 
 
 class ModelCreate(ModelBase):
-    """Schema for creating a model."""
+    """Schema for creating a model (with explicit project_id)."""
 
     project_id: str
+
+
+class ModelCreateNested(ModelBase):
+    """Schema for creating a model in nested endpoint.
+
+    project_id comes from URL path, not request body.
+    Used with POST /projects/{project_id}/models.
+    """
+
+    pass
 
 
 class ModelUpdate(BaseModel):
@@ -67,7 +77,7 @@ class NodeCreateDirect(NodeBase):
     model_id: str
 
 
-class NodeCreate(NodeBase):
+class NodeCreate(BaseModel):
     """Schema for creating a node within a graph context.
 
     Note: model_id is provided by the URL path parameter in graph endpoints,
@@ -76,6 +86,16 @@ class NodeCreate(NodeBase):
     """
 
     id: str  # UUID from frontend (React Flow)
+    type: str
+    name: str
+    position: dict[str, float]  # Required for React Flow {x, y}
+    description: str | None = None
+    tags: list[str] | None = None
+    properties: dict[str, Any] | None = None
+    level: str | None = None
+    parent_node_id: str | None = None
+    size: dict[str, float] | None = None
+    cost: dict[str, Any] | None = None
 
 
 class NodeUpdate(BaseModel):

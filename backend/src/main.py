@@ -3,8 +3,10 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from src.config import get_settings
 from src.database import close_db, init_db
@@ -29,6 +31,7 @@ app = FastAPI(
     description="Kuramei AI Architecture Platform - Backend API",
     version="0.1.0",
     lifespan=lifespan,
+    redirect_slashes=False,  # Avoid 307 redirects for trailing slashes
 )
 
 # CORS middleware
@@ -40,9 +43,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(projects_router, prefix="/projects", tags=["projects"])
-app.include_router(models_router, prefix="/models", tags=["models"])
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Convert FastAPI's 422 validation errors to 400 as per spec."""
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": exc.errors()},
+    )
+
+
+# Include routers under /api/v1 prefix
+app.include_router(projects_router, prefix="/api/v1/projects", tags=["projects"])
+app.include_router(models_router, prefix="/api/v1/models", tags=["models"])
 
 
 @app.get("/health")

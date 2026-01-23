@@ -31,6 +31,9 @@ class Model(Base):
         String(50), default="draft", server_default="draft"
     )
     version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    viewport: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON {x, y, zoom}
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,

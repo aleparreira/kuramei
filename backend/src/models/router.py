@@ -24,7 +24,7 @@ from src.projects.models import Project
 router = APIRouter()
 
 
-@router.get("/", response_model=list[ModelResponse])
+@router.get("", response_model=list[ModelResponse])
 async def list_models(
     project_id: str | None = None,
     db: AsyncSession = Depends(get_db),
@@ -37,19 +37,19 @@ async def list_models(
     return list(result.scalars().all())
 
 
-@router.post("/", response_model=ModelResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ModelResponse, status_code=status.HTTP_201_CREATED)
 async def create_model(
     model_data: ModelCreate,
     db: AsyncSession = Depends(get_db),
 ) -> Model:
     """Create a new architecture model."""
-    # Validate project exists
+    # Validate project exists - return 404 for not found
     project_result = await db.execute(
         select(Project).where(Project.id == model_data.project_id)
     )
     if project_result.scalar_one_or_none() is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Project {model_data.project_id} not found",
         )
 
@@ -209,11 +209,53 @@ async def get_graph(
     )
     edges = edges_result.scalars().all()
 
+    # Parse viewport from model (stored as JSON text)
+    viewport = _parse_json_field(model.viewport)
+
     return GraphResponse(
         nodes=[_node_to_response(n) for n in nodes],
         edges=[_edge_to_response(e) for e in edges],
-        viewport=None,  # Could store in model metadata later
+        viewport=viewport,
     )
+
+
+def _topological_sort_nodes(nodes: list) -> list:
+    """Sort nodes so parents come before children (for FK constraint).
+
+    Uses Kahn's algorithm for topological sort.
+    Returns nodes in safe insertion order.
+    """
+    # Build adjacency and in-degree maps
+    node_ids = {n.id for n in nodes}
+    node_map = {n.id: n for n in nodes}
+
+    # Calculate in-degrees (only for parent_node_id within this batch)
+    in_degree: dict[str, int] = {n.id: 0 for n in nodes}
+    children: dict[str, list[str]] = {n.id: [] for n in nodes}
+
+    for node in nodes:
+        if node.parent_node_id and node.parent_node_id in node_ids:
+            in_degree[node.id] += 1
+            children[node.parent_node_id].append(node.id)
+
+    # Start with nodes that have no parent (or parent outside batch)
+    queue = [nid for nid, deg in in_degree.items() if deg == 0]
+    sorted_ids = []
+
+    while queue:
+        nid = queue.pop(0)
+        sorted_ids.append(nid)
+        for child_id in children[nid]:
+            in_degree[child_id] -= 1
+            if in_degree[child_id] == 0:
+                queue.append(child_id)
+
+    # If not all nodes processed, there's a cycle (shouldn't happen in valid data)
+    # Return original order as fallback
+    if len(sorted_ids) != len(nodes):
+        return nodes
+
+    return [node_map[nid] for nid in sorted_ids]
 
 
 @router.put("/{model_id}/graph", response_model=GraphResponse)
@@ -226,6 +268,7 @@ async def save_graph(
 
     This replaces all existing nodes and edges for the model.
     Node/edge IDs are provided by the frontend (React Flow).
+    Viewport is persisted in the model for subsequent GET requests.
     """
     # Verify model exists
     result = await db.execute(select(Model).where(Model.id == model_id))
@@ -236,56 +279,60 @@ async def save_graph(
             detail=f"Model {model_id} not found",
         )
 
-    # Delete existing edges first (they reference nodes)
-    await db.execute(delete(Edge).where(Edge.model_id == model_id))
-    # Delete existing nodes
-    await db.execute(delete(Node).where(Node.model_id == model_id))
-
-    # Create new nodes
-    created_nodes = []
-    for node_data in graph_data.nodes:
-        node = Node(
-            id=node_data.id,
-            model_id=model_id,
-            type=node_data.type,
-            name=node_data.name,
-            description=node_data.description,
-            tags=_serialize_json_field(node_data.tags),
-            properties=_serialize_json_field(node_data.properties),
-            level=node_data.level,
-            parent_node_id=node_data.parent_node_id,
-            position=_serialize_json_field(node_data.position),
-            size=_serialize_json_field(node_data.size),
-            cost=_serialize_json_field(node_data.cost),
-        )
-        db.add(node)
-        created_nodes.append(node)
-
-    # Flush nodes to database before creating edges (edges reference nodes via FK)
-    await db.flush()
-
-    # Create new edges
-    created_edges = []
-    for edge_data in graph_data.edges:
-        edge = Edge(
-            id=edge_data.id,
-            model_id=model_id,
-            type=edge_data.type,
-            source_node_id=edge_data.source_node_id,
-            target_node_id=edge_data.target_node_id,
-            label=edge_data.label,
-            properties=_serialize_json_field(edge_data.properties),
-        )
-        db.add(edge)
-        created_edges.append(edge)
-
     try:
+        # Delete existing edges first (they reference nodes)
+        await db.execute(delete(Edge).where(Edge.model_id == model_id))
+        # Delete existing nodes
+        await db.execute(delete(Node).where(Node.model_id == model_id))
+
+        # Create new nodes (sorted to ensure parents before children for FK)
+        sorted_node_data = _topological_sort_nodes(graph_data.nodes)
+        created_nodes = []
+        for node_data in sorted_node_data:
+            node = Node(
+                id=node_data.id,
+                model_id=model_id,
+                type=node_data.type,
+                name=node_data.name,
+                description=node_data.description,
+                tags=_serialize_json_field(node_data.tags),
+                properties=_serialize_json_field(node_data.properties),
+                level=node_data.level,
+                parent_node_id=node_data.parent_node_id,
+                position=_serialize_json_field(node_data.position),
+                size=_serialize_json_field(node_data.size),
+                cost=_serialize_json_field(node_data.cost),
+            )
+            db.add(node)
+            created_nodes.append(node)
+
+        # Flush nodes to database before creating edges (edges reference nodes via FK)
+        await db.flush()
+
+        # Create new edges
+        created_edges = []
+        for edge_data in graph_data.edges:
+            edge = Edge(
+                id=edge_data.id,
+                model_id=model_id,
+                type=edge_data.type,
+                source_node_id=edge_data.source_node_id,
+                target_node_id=edge_data.target_node_id,
+                label=edge_data.label,
+                properties=_serialize_json_field(edge_data.properties),
+            )
+            db.add(edge)
+            created_edges.append(edge)
+
+        # Persist viewport in model
+        model.viewport = _serialize_json_field(graph_data.viewport)
+
         await db.commit()
-    except IntegrityError as e:
+    except IntegrityError:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to save graph: invalid node/edge references. {e!s}",
+            detail="Failed to save graph: invalid node/edge references",
         )
 
     # Refresh to get created_at/updated_at

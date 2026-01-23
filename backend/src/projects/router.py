@@ -7,21 +7,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
 from src.models.models import Model
-from src.models.schemas import ModelCreate, ModelResponse
+from src.models.schemas import ModelCreateNested, ModelResponse
 from src.projects.models import Project
 from src.projects.schemas import ProjectCreate, ProjectResponse, ProjectUpdate
 
 router = APIRouter()
 
 
-@router.get("/", response_model=list[ProjectResponse])
+@router.get("", response_model=list[ProjectResponse])
 async def list_projects(db: AsyncSession = Depends(get_db)) -> list[Project]:
     """List all projects."""
     result = await db.execute(select(Project).order_by(Project.created_at.desc()))
     return list(result.scalars().all())
 
 
-@router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
     project_data: ProjectCreate,
     db: AsyncSession = Depends(get_db),
@@ -127,12 +127,12 @@ async def list_project_models(
 )
 async def create_project_model(
     project_id: str,
-    model_data: ModelCreate,
+    model_data: ModelCreateNested,
     db: AsyncSession = Depends(get_db),
 ) -> Model:
     """Create a new model in a project.
 
-    Note: project_id from URL takes precedence over model_data.project_id.
+    project_id comes from the URL path, not the request body.
     """
     # Verify project exists
     project_result = await db.execute(select(Project).where(Project.id == project_id))
