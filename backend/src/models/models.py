@@ -234,7 +234,7 @@ class ChangeSet(Base):
     )
     source: Mapped[str] = mapped_column(String(50), nullable=False)  # "chat" | "manual"
     summary: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    operations: Mapped[dict] = mapped_column(JSON, nullable=False)  # JSON array of ops
+    operations: Mapped[list] = mapped_column(JSON, nullable=False)  # JSON array of ops
     status: Mapped[str] = mapped_column(
         String(50), default="applied", server_default="applied"
     )
