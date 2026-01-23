@@ -502,3 +502,60 @@ function processSSEChunk(
       break;
   }
 }
+
+// --- Terraform API types ---
+
+export interface TerraformValidationError {
+  node_id: string;
+  node_name: string;
+  message: string;
+}
+
+export interface TerraformValidationWarning {
+  node_id: string;
+  node_name: string;
+  message: string;
+}
+
+export interface TerraformValidationResult {
+  valid: boolean;
+  errors: TerraformValidationError[];
+  warnings: TerraformValidationWarning[];
+}
+
+export interface TerraformFile {
+  path: string;
+  content: string;
+}
+
+export interface TerraformGenerateResponse {
+  files: TerraformFile[];
+  warnings: string[];
+}
+
+// --- Terraform API ---
+
+/**
+ * Validate a model for Terraform export.
+ * Returns validation result with errors and warnings.
+ */
+export async function validateTerraform(
+  modelId: string
+): Promise<TerraformValidationResult> {
+  return apiCall<TerraformValidationResult>(
+    `/api/v1/models/${modelId}/terraform/validate`
+  );
+}
+
+/**
+ * Generate Terraform files from a model.
+ * The model must be valid (use validateTerraform first).
+ */
+export async function generateTerraform(
+  modelId: string
+): Promise<TerraformGenerateResponse> {
+  return apiCall<TerraformGenerateResponse>(
+    `/api/v1/models/${modelId}/terraform/generate`,
+    { method: 'POST' }
+  );
+}

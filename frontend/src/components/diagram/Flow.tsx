@@ -17,11 +17,12 @@ import {
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { MessageSquare, Layers, DollarSign } from 'lucide-react';
+import { MessageSquare, Layers, DollarSign, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ChatPanel } from '@/components/chat';
 import { Breadcrumbs } from '@/components/diagram/Breadcrumbs';
+import { ExportModal } from '@/components/export';
 import { CostNode, formatCurrency, type CostData } from '@/components/diagram/CostNode';
 import { useChat, type ChatMessage } from '@/hooks/useChat';
 import {
@@ -225,6 +226,7 @@ function FlowCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const { screenToFlowPosition, setViewport, toObject, fitView } = useReactFlow();
 
   // Store all nodes from backend (unfiltered) for child lookups
@@ -586,10 +588,19 @@ function FlowCanvas({
         <Button variant="outline" onClick={handleAddNode}>
           + Add Node
         </Button>
+        <Button variant="outline" onClick={() => setIsExportOpen(true)}>
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
       </Panel>
+      <ExportModal
+        modelId={modelId}
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+      />
       <Panel position="top-left" className="flex flex-col gap-2">
         <div className="flex gap-1 items-center">
           {(['L0', 'L1', 'L2', 'L3'] as const).map((level) => (
