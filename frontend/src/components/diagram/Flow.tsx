@@ -17,14 +17,18 @@ import {
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { MessageSquare } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ChatPanel } from '@/components/chat';
+import { useChat, type ChatMessage } from '@/hooks/useChat';
 import {
   loadGraph,
   saveGraph,
   bootstrapMvp,
   ApiError,
   type GraphData,
+  type GraphResponse,
   type NodeData,
   type EdgeData,
   type Viewport,
@@ -130,14 +134,43 @@ interface FlowCanvasProps {
   modelId: string;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  isChatOpen: boolean;
+  onToggleChat: () => void;
+  /** Callback to register graph update handler from parent */
+  onRegisterGraphUpdate?: (
+    handler: (graph: GraphResponse) => void
+  ) => void;
 }
 
-function FlowCanvas({ modelId, onError, onSuccess }: FlowCanvasProps) {
+function FlowCanvas({
+  modelId,
+  onError,
+  onSuccess,
+  isChatOpen,
+  onToggleChat,
+  onRegisterGraphUpdate,
+}: FlowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { screenToFlowPosition, setViewport, toObject } = useReactFlow();
+
+  // Handle graph updates from chat (SSE)
+  const handleGraphUpdate = useCallback(
+    (graph: GraphResponse) => {
+      console.log('[FlowCanvas] Applying graph update from chat');
+      setNodes(graph.nodes.map(nodeFromBackend));
+      setEdges(graph.edges.map(edgeFromBackend));
+      onSuccess('Architecture updated via chat');
+    },
+    [setNodes, setEdges, onSuccess]
+  );
+
+  // Register the graph update handler with parent
+  useEffect(() => {
+    onRegisterGraphUpdate?.(handleGraphUpdate);
+  }, [onRegisterGraphUpdate, handleGraphUpdate]);
 
   // Load graph on mount
   useEffect(() => {
@@ -274,6 +307,14 @@ function FlowCanvas({ modelId, onError, onSuccess }: FlowCanvasProps) {
         maskColor="rgba(69, 67, 96, 0.1)"
       />
       <Panel position="top-right" className="flex gap-2">
+        <Button
+          variant={isChatOpen ? 'default' : 'outline'}
+          onClick={onToggleChat}
+          size="icon"
+          title="Toggle chat"
+        >
+          <MessageSquare className="h-4 w-4" />
+        </Button>
         <Button variant="outline" onClick={handleAddNode}>
           + Add Node
         </Button>
@@ -292,6 +333,39 @@ export default function Flow() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+
+  // Chat state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // Graph update handler - will be set by FlowCanvas
+  const [graphUpdateHandler, setGraphUpdateHandler] = useState<
+    ((graph: GraphResponse) => void) | null
+  >(null);
+
+  // useChat hook for SSE streaming
+  const {
+    messages,
+    streamingContent,
+    isLoading: isLoadingChat,
+    error: chatError,
+    sendMessage,
+  } = useChat({
+    modelId: modelId || '',
+    onGraphUpdate: useCallback(
+      (graph: GraphResponse) => {
+        // Forward to FlowCanvas via the registered handler
+        graphUpdateHandler?.(graph);
+      },
+      [graphUpdateHandler]
+    ),
+    onOperations: useCallback((operations: unknown[]) => {
+      // Log operations for debugging
+      console.log('[Flow] Operations applied:', operations.length);
+    }, []),
+  });
+
+  // Convert chat messages to the format expected by ChatPanel
+  const chatMessages: ChatMessage[] = messages;
 
   // Bootstrap MVP on mount
   useEffect(() => {
@@ -329,6 +403,30 @@ export default function Flow() {
     setTimeout(() => setStatus(null), 3000);
   }, []);
 
+  // Chat handlers
+  const handleToggleChat = useCallback(() => {
+    setIsChatOpen((prev) => !prev);
+  }, []);
+
+  const handleCloseChat = useCallback(() => {
+    setIsChatOpen(false);
+  }, []);
+
+  // Register graph update handler from FlowCanvas
+  const handleRegisterGraphUpdate = useCallback(
+    (handler: (graph: GraphResponse) => void) => {
+      setGraphUpdateHandler(() => handler);
+    },
+    []
+  );
+
+  // Show chat error in status bar
+  useEffect(() => {
+    if (chatError) {
+      handleError(chatError);
+    }
+  }, [chatError, handleError]);
+
   if (isBootstrapping) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-background">
@@ -353,30 +451,46 @@ export default function Flow() {
   }
 
   return (
-    <div className="h-full w-full relative">
-      <ReactFlowProvider>
-        {modelId && (
-          <FlowCanvas
-            modelId={modelId}
-            onError={handleError}
-            onSuccess={handleSuccess}
-          />
-        )}
-      </ReactFlowProvider>
-      {/* Status/Error toast */}
-      {(error || status) && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
-          <div
-            className={`px-4 py-2 rounded-md shadow-lg text-sm ${
-              error
-                ? 'bg-destructive text-destructive-foreground'
-                : 'bg-card text-card-foreground border border-border'
-            }`}
-          >
-            {error || status}
+    <div className="flex h-full w-full">
+      {/* Canvas area */}
+      <div className="relative flex-1">
+        <ReactFlowProvider>
+          {modelId && (
+            <FlowCanvas
+              modelId={modelId}
+              onError={handleError}
+              onSuccess={handleSuccess}
+              isChatOpen={isChatOpen}
+              onToggleChat={handleToggleChat}
+              onRegisterGraphUpdate={handleRegisterGraphUpdate}
+            />
+          )}
+        </ReactFlowProvider>
+        {/* Status/Error toast */}
+        {(error || status) && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
+            <div
+              className={`px-4 py-2 rounded-md shadow-lg text-sm ${
+                error
+                  ? 'bg-destructive text-destructive-foreground'
+                  : 'bg-card text-card-foreground border border-border'
+              }`}
+            >
+              {error || status}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* Chat panel */}
+      <ChatPanel
+        isOpen={isChatOpen}
+        onClose={handleCloseChat}
+        messages={chatMessages}
+        onSendMessage={sendMessage}
+        isLoading={isLoadingChat}
+        streamingContent={streamingContent}
+      />
     </div>
   );
 }

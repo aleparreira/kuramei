@@ -232,3 +232,255 @@ export async function bootstrapMvp(): Promise<string> {
   const model = await ensureDefaultModel(project.id);
   return model.id;
 }
+
+// --- Conversation types ---
+
+export interface Conversation {
+  id: string;
+  model_id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- Chat types ---
+
+export type SSEEventType = 'token' | 'operations' | 'graph' | 'error' | 'done';
+
+export interface SSECallbacks {
+  onToken?: (token: string) => void;
+  onOperations?: (operations: unknown[]) => void;
+  onGraph?: (graph: GraphResponse) => void;
+  onError?: (error: string) => void;
+  onDone?: () => void;
+}
+
+export interface SSEConnection {
+  close: () => void;
+}
+
+// --- Conversation API ---
+
+/**
+ * Create a new conversation for a model.
+ */
+export async function createConversation(
+  modelId: string,
+  title?: string
+): Promise<Conversation> {
+  return apiCall<Conversation>('/api/v1/chat/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ model_id: modelId, title }),
+  });
+}
+
+/**
+ * List conversations for a model.
+ */
+export async function listConversations(modelId: string): Promise<Conversation[]> {
+  return apiCall<Conversation[]>(`/api/v1/chat/conversations?model_id=${encodeURIComponent(modelId)}`);
+}
+
+/**
+ * Get messages for a conversation.
+ */
+export async function getConversationMessages(
+  conversationId: string
+): Promise<{ id: string; role: string; content: string; created_at: string }[]> {
+  return apiCall(`/api/v1/chat/conversations/${conversationId}/messages`);
+}
+
+// --- Chat SSE API ---
+
+/**
+ * Send a message to a conversation and receive streaming response via SSE.
+ *
+ * @param conversationId - The conversation to send the message to
+ * @param content - The message content
+ * @param callbacks - Callbacks for different SSE event types
+ * @returns Object with close() method to abort the connection
+ */
+export function sendMessageSSE(
+  conversationId: string,
+  content: string,
+  callbacks: SSECallbacks
+): SSEConnection {
+  const url = `${API_URL}/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/messages`;
+  const controller = new AbortController();
+
+  // Guard against double onDone calls
+  let doneHandled = false;
+  const callOnDone = () => {
+    if (!doneHandled) {
+      doneHandled = true;
+      callbacks.onDone?.();
+    }
+  };
+
+  // Start the SSE connection
+  (async () => {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify({ content }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        let detail: string;
+        try {
+          const json = await response.json();
+          detail = json.detail || JSON.stringify(json);
+        } catch {
+          detail = await response.text();
+        }
+        callbacks.onError?.(`Request failed: ${response.status} - ${detail}`);
+        callOnDone();
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        callbacks.onError?.('No response body');
+        callOnDone();
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          // Process any remaining buffer
+          if (buffer.trim()) {
+            processSSEChunk(buffer, callbacks, callOnDone);
+          }
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Normalize line endings (handle \r\n from some servers)
+        buffer = buffer.replace(/\r\n/g, '\n');
+
+        // Process complete events (each ends with double newline)
+        const events = buffer.split('\n\n');
+        // Keep the last incomplete chunk in buffer
+        buffer = events.pop() || '';
+
+        for (const eventText of events) {
+          if (eventText.trim()) {
+            processSSEChunk(eventText, callbacks, callOnDone);
+          }
+        }
+      }
+
+      // Ensure onDone is called even if not received from server
+      callOnDone();
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          // Connection was intentionally closed - still call onDone for cleanup
+          callOnDone();
+          return;
+        }
+        callbacks.onError?.(error.message);
+      } else {
+        callbacks.onError?.('Unknown error');
+      }
+      callOnDone();
+    }
+  })();
+
+  return {
+    close: () => controller.abort(),
+  };
+}
+
+/**
+ * Process a single SSE chunk and call appropriate callbacks.
+ *
+ * SSE spec: multiple `data:` lines are concatenated with newlines.
+ */
+function processSSEChunk(
+  chunk: string,
+  callbacks: SSECallbacks,
+  callOnDone: () => void
+): void {
+  let eventType: SSEEventType | null = null;
+  const dataLines: string[] = [];
+
+  const lines = chunk.split('\n');
+  for (const line of lines) {
+    if (line.startsWith('event:')) {
+      eventType = line.slice(6).trim() as SSEEventType;
+    } else if (line.startsWith('data:')) {
+      // Accumulate data lines (SSE spec allows multiple data: lines)
+      dataLines.push(line.slice(5));
+    }
+  }
+
+  if (!eventType) {
+    return;
+  }
+
+  // Join multiple data lines with newlines (per SSE spec)
+  const data = dataLines.length > 0 ? dataLines.join('\n').trim() : null;
+
+  switch (eventType) {
+    case 'token':
+      if (data) {
+        try {
+          const token = JSON.parse(data);
+          callbacks.onToken?.(token);
+        } catch {
+          // If not JSON, use as-is
+          callbacks.onToken?.(data);
+        }
+      }
+      break;
+
+    case 'operations':
+      if (data) {
+        try {
+          const operations = JSON.parse(data);
+          callbacks.onOperations?.(operations);
+        } catch (e) {
+          console.error('Failed to parse operations:', e, data);
+        }
+      }
+      break;
+
+    case 'graph':
+      if (data) {
+        try {
+          const graph = JSON.parse(data);
+          callbacks.onGraph?.(graph);
+        } catch (e) {
+          console.error('Failed to parse graph:', e, data);
+        }
+      }
+      break;
+
+    case 'error':
+      if (data) {
+        try {
+          const errorMsg = JSON.parse(data);
+          callbacks.onError?.(errorMsg);
+        } catch {
+          callbacks.onError?.(data);
+        }
+      }
+      break;
+
+    case 'done':
+      callOnDone();
+      break;
+  }
+}

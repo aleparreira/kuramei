@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.chat.router import router as chat_router
 from src.config import get_settings
 from src.database import close_db
 from src.models.router import router as models_router
@@ -63,6 +64,7 @@ async def validation_exception_handler(
 # Include routers under /api/v1 prefix
 app.include_router(projects_router, prefix="/api/v1/projects", tags=["projects"])
 app.include_router(models_router, prefix="/api/v1/models", tags=["models"])
+app.include_router(chat_router, prefix="/api/v1/chat", tags=["chat"])
 
 
 @app.get("/health")

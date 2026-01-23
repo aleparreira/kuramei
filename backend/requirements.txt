@@ -12,6 +12,12 @@ alembic>=1.13.0
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 
+# LLM
+anthropic>=0.40.0
+
+# SSE Streaming
+sse-starlette>=2.0.0
+
 # Dev (optional)
 pytest>=7.4.0
 pytest-asyncio>=0.23.0

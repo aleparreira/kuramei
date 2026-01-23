@@ -15,7 +15,14 @@ from src.config import get_settings
 
 # Import our models and Base to get metadata
 from src.database import Base
-from src.models.models import Edge, Model, Node  # noqa: F401
+from src.models.models import (  # noqa: F401
+    ChangeSet,
+    Conversation,
+    Edge,
+    Message,
+    Model,
+    Node,
+)
 
 # Import all models to ensure they are registered with Base.metadata
 from src.projects.models import Project  # noqa: F401
