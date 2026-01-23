@@ -299,9 +299,15 @@ class ChatService:
             yield StreamEvent(type="done", data=None)
 
         except Exception as e:
-            # Catch-all to ensure done is always emitted
+            # Catch-all to ensure graph and done are always emitted
             logger.exception(f"Unexpected error in stream_response: {e}")
             yield StreamEvent(type="error", data=f"Unexpected error: {e}")
+            # Try to emit current graph state (best effort)
+            try:
+                graph = await self._get_current_graph(conversation.model_id)
+                yield StreamEvent(type="graph", data=graph)
+            except Exception as graph_error:
+                logger.warning(f"Could not emit graph after error: {graph_error}")
             yield StreamEvent(type="done", data=None)
 
     def _serialize_operation(self, op: Operation) -> dict[str, Any]:

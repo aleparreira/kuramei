@@ -168,11 +168,18 @@ async def _stream_sse_events(
     """Stream SSE events from the chat service.
 
     Yields dicts with 'event' and 'data' keys for EventSourceResponse.
+    Token events are sent as plain text, other events are JSON encoded.
     """
     async for event in service.stream_response(conversation, user_message):
+        # Token events are plain strings, other events need JSON encoding
+        if event.type == "token":
+            data = event.data if event.data is not None else ""
+        else:
+            data = json.dumps(event.data) if event.data is not None else ""
+
         yield {
             "event": event.type,
-            "data": json.dumps(event.data) if event.data is not None else "",
+            "data": data,
         }
 
 
