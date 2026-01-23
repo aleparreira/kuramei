@@ -320,5 +320,5 @@ class ChatMessageRequest(BaseModel):
 class ChatStreamEvent(BaseModel):
     """Schema for SSE stream events."""
 
-    type: str  # "token" | "operations" | "error" | "done"
+    type: str  # "token" | "operations" | "graph" | "error" | "done"
     data: Any

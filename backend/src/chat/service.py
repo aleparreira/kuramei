@@ -3,6 +3,7 @@
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -136,6 +137,43 @@ class ChatService:
 
         return "\n".join(lines)
 
+    async def _get_current_graph(self, model_id: str) -> dict[str, Any]:
+        """Get current graph state for a model.
+
+        Args:
+            model_id: The model ID to get graph for.
+
+        Returns:
+            Dict with nodes and edges arrays.
+        """
+        # Fetch nodes
+        nodes_result = await self.db.execute(
+            select(Node).where(Node.model_id == model_id)
+        )
+        nodes = list(nodes_result.scalars().all())
+
+        # Fetch edges
+        edges_result = await self.db.execute(
+            select(Edge).where(Edge.model_id == model_id)
+        )
+        edges = list(edges_result.scalars().all())
+
+        return {
+            "nodes": self.changeset_service._serialize_nodes(nodes),
+            "edges": self.changeset_service._serialize_edges(edges),
+        }
+
+    async def _update_conversation_timestamp(
+        self, conversation: Conversation
+    ) -> None:
+        """Update the conversation's updated_at timestamp.
+
+        Args:
+            conversation: The conversation to update.
+        """
+        conversation.updated_at = datetime.utcnow()
+        await self.db.commit()
+
     async def stream_response(
         self,
         conversation: Conversation,
@@ -144,8 +182,8 @@ class ChatService:
         """Stream a chat response for a user message.
 
         This method:
-        1. Saves the user message
-        2. Builds context including architecture state
+        1. Builds context including architecture state BEFORE saving user message
+        2. Saves the user message
         3. Streams LLM response tokens
         4. Parses operations from the response
         5. Applies operations to the graph
@@ -158,81 +196,111 @@ class ChatService:
         Yields:
             StreamEvent objects for tokens, operations, graph state, and done.
         """
-        # Save user message
-        user_msg = Message(
-            conversation_id=conversation.id,
-            role="user",
-            content=user_message,
-        )
-        self.db.add(user_msg)
-        await self.db.commit()
-        await self.db.refresh(user_msg)
-
-        # Build context
-        context = await self.get_conversation_context(conversation)
-
-        # Build system prompt with architecture context
-        system_prompt = f"{ARCHITECTURE_SYSTEM_PROMPT}\n\n{context.architecture_summary}"
-
-        # Add the new user message to context
-        context.messages.append(LLMMessage(role="user", content=user_message))
-
-        # Stream LLM response
-        full_response = ""
         try:
-            async for token in self.llm.chat_stream(
-                messages=context.messages,
-                system_prompt=system_prompt,
-            ):
-                full_response += token
-                yield StreamEvent(type="token", data=token)
+            # Build context BEFORE saving user message to avoid duplication
+            context = await self.get_conversation_context(conversation)
+            architecture_summary = context.architecture_summary
 
-        except LLMError as e:
-            logger.error(f"LLM error during streaming: {e}")
-            yield StreamEvent(type="error", data=str(e))
-            return
-
-        # Save assistant message
-        assistant_msg = Message(
-            conversation_id=conversation.id,
-            role="assistant",
-            content=full_response,
-        )
-        self.db.add(assistant_msg)
-        await self.db.commit()
-        await self.db.refresh(assistant_msg)
-
-        # Parse operations from response
-        explanation, operations = parse_operations(full_response)
-
-        if operations:
-            # Emit operations event
-            yield StreamEvent(
-                type="operations",
-                data=[self._serialize_operation(op) for op in operations],
+            # Now save user message
+            user_msg = Message(
+                conversation_id=conversation.id,
+                role="user",
+                content=user_message,
             )
+            self.db.add(user_msg)
+            await self.db.commit()
+            await self.db.refresh(user_msg)
 
-            # Apply operations to graph
+            # Update conversation timestamp
+            await self._update_conversation_timestamp(conversation)
+
+            # Build system prompt with architecture context
+            system_prompt = f"{ARCHITECTURE_SYSTEM_PROMPT}\n\n{architecture_summary}"
+
+            # Add the new user message to context (now it's the only copy)
+            context.messages.append(LLMMessage(role="user", content=user_message))
+
+            # Stream LLM response
+            full_response = ""
+            llm_error = None
             try:
-                result = await self.changeset_service.apply_operations(
-                    model_id=conversation.model_id,
-                    operations=operations,
-                    message_id=assistant_msg.id,
-                    source="chat",
-                )
+                async for token in self.llm.chat_stream(
+                    messages=context.messages,
+                    system_prompt=system_prompt,
+                ):
+                    full_response += token
+                    yield StreamEvent(type="token", data=token)
 
-                # Emit updated graph
+            except LLMError as e:
+                logger.error(f"LLM error during streaming: {e}")
+                llm_error = e
+                yield StreamEvent(type="error", data=str(e))
+
+            if llm_error:
+                # Still emit current graph state and done on error
+                graph = await self._get_current_graph(conversation.model_id)
+                yield StreamEvent(type="graph", data=graph)
+                yield StreamEvent(type="done", data=None)
+                return
+
+            # Save assistant message
+            assistant_msg = Message(
+                conversation_id=conversation.id,
+                role="assistant",
+                content=full_response,
+            )
+            self.db.add(assistant_msg)
+            await self.db.commit()
+            await self.db.refresh(assistant_msg)
+
+            # Update conversation timestamp again
+            await self._update_conversation_timestamp(conversation)
+
+            # Parse operations from response
+            explanation, operations = parse_operations(full_response)
+
+            if operations:
+                # Emit operations event
                 yield StreamEvent(
-                    type="graph",
-                    data={"nodes": result.nodes, "edges": result.edges},
+                    type="operations",
+                    data=[self._serialize_operation(op) for op in operations],
                 )
 
-            except ChangeSetApplicationError as e:
-                logger.error(f"Failed to apply operations: {e}")
-                yield StreamEvent(type="error", data=f"Failed to apply changes: {e}")
+                # Apply operations to graph
+                try:
+                    result = await self.changeset_service.apply_operations(
+                        model_id=conversation.model_id,
+                        operations=operations,
+                        message_id=assistant_msg.id,
+                        source="chat",
+                    )
 
-        # Signal completion
-        yield StreamEvent(type="done", data=None)
+                    # Emit updated graph
+                    yield StreamEvent(
+                        type="graph",
+                        data={"nodes": result.nodes, "edges": result.edges},
+                    )
+
+                except ChangeSetApplicationError as e:
+                    logger.error(f"Failed to apply operations: {e}")
+                    yield StreamEvent(type="error", data=f"Failed to apply changes: {e}")
+                    # Emit current (unchanged) graph state
+                    graph = await self._get_current_graph(conversation.model_id)
+                    yield StreamEvent(type="graph", data=graph)
+
+            else:
+                # No operations - still emit current graph state
+                graph = await self._get_current_graph(conversation.model_id)
+                yield StreamEvent(type="graph", data=graph)
+
+            # Signal completion
+            yield StreamEvent(type="done", data=None)
+
+        except Exception as e:
+            # Catch-all to ensure done is always emitted
+            logger.exception(f"Unexpected error in stream_response: {e}")
+            yield StreamEvent(type="error", data=f"Unexpected error: {e}")
+            yield StreamEvent(type="done", data=None)
 
     def _serialize_operation(self, op: Operation) -> dict[str, Any]:
         """Serialize an operation to a dict."""

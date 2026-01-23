@@ -119,9 +119,18 @@ def parse_operations(llm_response: str) -> tuple[str, list[Operation]]:
         return llm_response.strip(), []
 
     # Extract operations from the parsed JSON
-    operations_data = data.get("operations", [])
+    # Support both { "operations": [...] } and top-level [...]
+    if isinstance(data, list):
+        # Top-level list of operations
+        operations_data = data
+    elif isinstance(data, dict):
+        operations_data = data.get("operations", [])
+    else:
+        # Unexpected type
+        return llm_response.strip(), []
+
     if not operations_data:
-        # JSON exists but no operations field
+        # JSON exists but no operations
         return llm_response.strip(), []
 
     # Validate operations using Pydantic
