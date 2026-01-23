@@ -1,13 +1,24 @@
 """FastAPI router for Kuramei architecture models domain."""
 
+import json
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.models.models import Model
-from src.models.schemas import ModelCreate, ModelResponse, ModelUpdate
+from src.models.models import Edge, Model, Node
+from src.models.schemas import (
+    EdgeResponse,
+    GraphData,
+    GraphResponse,
+    ModelCreate,
+    ModelResponse,
+    ModelUpdate,
+    NodeResponse,
+)
 from src.projects.models import Project
 
 router = APIRouter()
@@ -115,3 +126,176 @@ async def delete_model(
 
     await db.delete(model)
     await db.commit()
+
+
+# --- Graph endpoints ---
+
+
+def _parse_json_field(value: str | None) -> Any:
+    """Parse a JSON string field, returning None if empty or invalid."""
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def _serialize_json_field(value: Any) -> str | None:
+    """Serialize a value to JSON string, returning None if empty."""
+    if value is None:
+        return None
+    return json.dumps(value)
+
+
+def _node_to_response(node: Node) -> NodeResponse:
+    """Convert a Node ORM object to NodeResponse, parsing JSON fields."""
+    return NodeResponse(
+        id=node.id,
+        model_id=node.model_id,
+        type=node.type,
+        name=node.name,
+        description=node.description,
+        tags=_parse_json_field(node.tags),
+        properties=_parse_json_field(node.properties),
+        level=node.level,
+        parent_node_id=node.parent_node_id,
+        position=_parse_json_field(node.position),
+        size=_parse_json_field(node.size),
+        cost=_parse_json_field(node.cost),
+        created_at=node.created_at,
+        updated_at=node.updated_at,
+    )
+
+
+def _edge_to_response(edge: Edge) -> EdgeResponse:
+    """Convert an Edge ORM object to EdgeResponse, parsing JSON fields."""
+    return EdgeResponse(
+        id=edge.id,
+        model_id=edge.model_id,
+        type=edge.type,
+        source_node_id=edge.source_node_id,
+        target_node_id=edge.target_node_id,
+        label=edge.label,
+        properties=_parse_json_field(edge.properties),
+        created_at=edge.created_at,
+        updated_at=edge.updated_at,
+    )
+
+
+@router.get("/{model_id}/graph", response_model=GraphResponse)
+async def get_graph(
+    model_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> GraphResponse:
+    """Get full graph (nodes + edges) for a model."""
+    # Verify model exists
+    result = await db.execute(select(Model).where(Model.id == model_id))
+    model = result.scalar_one_or_none()
+    if model is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {model_id} not found",
+        )
+
+    # Fetch nodes and edges
+    nodes_result = await db.execute(
+        select(Node).where(Node.model_id == model_id).order_by(Node.created_at)
+    )
+    nodes = nodes_result.scalars().all()
+
+    edges_result = await db.execute(
+        select(Edge).where(Edge.model_id == model_id).order_by(Edge.created_at)
+    )
+    edges = edges_result.scalars().all()
+
+    return GraphResponse(
+        nodes=[_node_to_response(n) for n in nodes],
+        edges=[_edge_to_response(e) for e in edges],
+        viewport=None,  # Could store in model metadata later
+    )
+
+
+@router.put("/{model_id}/graph", response_model=GraphResponse)
+async def save_graph(
+    model_id: str,
+    graph_data: GraphData,
+    db: AsyncSession = Depends(get_db),
+) -> GraphResponse:
+    """Save full graph (nodes + edges + viewport) for a model.
+
+    This replaces all existing nodes and edges for the model.
+    Node/edge IDs are provided by the frontend (React Flow).
+    """
+    # Verify model exists
+    result = await db.execute(select(Model).where(Model.id == model_id))
+    model = result.scalar_one_or_none()
+    if model is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {model_id} not found",
+        )
+
+    # Delete existing edges first (they reference nodes)
+    await db.execute(delete(Edge).where(Edge.model_id == model_id))
+    # Delete existing nodes
+    await db.execute(delete(Node).where(Node.model_id == model_id))
+
+    # Create new nodes
+    created_nodes = []
+    for node_data in graph_data.nodes:
+        node = Node(
+            id=node_data.id,
+            model_id=model_id,
+            type=node_data.type,
+            name=node_data.name,
+            description=node_data.description,
+            tags=_serialize_json_field(node_data.tags),
+            properties=_serialize_json_field(node_data.properties),
+            level=node_data.level,
+            parent_node_id=node_data.parent_node_id,
+            position=_serialize_json_field(node_data.position),
+            size=_serialize_json_field(node_data.size),
+            cost=_serialize_json_field(node_data.cost),
+        )
+        db.add(node)
+        created_nodes.append(node)
+
+    # Flush nodes to database before creating edges (edges reference nodes via FK)
+    await db.flush()
+
+    # Create new edges
+    created_edges = []
+    for edge_data in graph_data.edges:
+        edge = Edge(
+            id=edge_data.id,
+            model_id=model_id,
+            type=edge_data.type,
+            source_node_id=edge_data.source_node_id,
+            target_node_id=edge_data.target_node_id,
+            label=edge_data.label,
+            properties=_serialize_json_field(edge_data.properties),
+        )
+        db.add(edge)
+        created_edges.append(edge)
+
+    try:
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to save graph: invalid node/edge references. {e!s}",
+        )
+
+    # Refresh to get created_at/updated_at
+    for node in created_nodes:
+        await db.refresh(node)
+    for edge in created_edges:
+        await db.refresh(edge)
+
+    return GraphResponse(
+        nodes=[_node_to_response(n) for n in created_nodes],
+        edges=[_edge_to_response(e) for e in created_edges],
+        viewport=graph_data.viewport,
+    )

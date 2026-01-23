@@ -13,9 +13,7 @@ class Model(Base):
     """Architecture Model SQLAlchemy model."""
 
     __tablename__ = "models"
-    __table_args__ = (
-        Index("ix_models_project_id", "project_id"),
-    )
+    __table_args__ = (Index("ix_models_project_id", "project_id"),)
 
     id: Mapped[str] = mapped_column(
         String(36),

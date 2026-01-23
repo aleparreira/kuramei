@@ -14,12 +14,15 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
+    connect_args={"check_same_thread": False}
+    if "sqlite" in settings.database_url
+    else {},
 )
 
 
 # Enable SQLite foreign keys and WAL mode on each connection (only for SQLite)
 if "sqlite" in settings.database_url:
+
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         """Enable SQLite foreign keys and WAL mode for better concurrency."""

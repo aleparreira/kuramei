@@ -72,9 +72,10 @@ class NodeCreate(NodeBase):
 
     Note: model_id is provided by the URL path parameter in graph endpoints,
     not in the request body. This schema is used within GraphData.
+    The id is provided by the frontend (React Flow needs stable IDs).
     """
 
-    pass
+    id: str  # UUID from frontend (React Flow)
 
 
 class NodeUpdate(BaseModel):
@@ -127,9 +128,10 @@ class EdgeCreate(EdgeBase):
 
     Note: model_id is provided by the URL path parameter in graph endpoints,
     not in the request body. This schema is used within GraphData.
+    The id is provided by the frontend (React Flow needs stable IDs).
     """
 
-    pass
+    id: str  # UUID from frontend (React Flow)
 
 
 class EdgeUpdate(BaseModel):
