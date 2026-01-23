@@ -18,17 +18,30 @@ uvicorn src.main:app --reload --port 8000
 
 ## API Endpoints
 
+All API endpoints are under `/api/v1` prefix.
+
+### Health (root)
 - `GET /health` - Health check
-- `GET /projects` - List projects
-- `POST /projects` - Create project
-- `GET /projects/{id}` - Get project
-- `PUT /projects/{id}` - Update project
-- `DELETE /projects/{id}` - Delete project
-- `GET /models` - List models (filter by `?project_id=`)
-- `POST /models` - Create model
-- `GET /models/{id}` - Get model
-- `PUT /models/{id}` - Update model
-- `DELETE /models/{id}` - Delete model
+
+### Projects
+- `GET /api/v1/projects` - List projects
+- `POST /api/v1/projects` - Create project
+- `GET /api/v1/projects/{id}` - Get project
+- `PUT /api/v1/projects/{id}` - Update project
+- `DELETE /api/v1/projects/{id}` - Delete project
+- `GET /api/v1/projects/{id}/models` - List models in project
+- `POST /api/v1/projects/{id}/models` - Create model in project
+
+### Models
+- `GET /api/v1/models` - List models (filter by `?project_id=`)
+- `POST /api/v1/models` - Create model
+- `GET /api/v1/models/{id}` - Get model
+- `PUT /api/v1/models/{id}` - Update model
+- `DELETE /api/v1/models/{id}` - Delete model
+
+### Graph (nodes + edges)
+- `GET /api/v1/models/{id}/graph` - Get full graph `{nodes, edges, viewport}`
+- `PUT /api/v1/models/{id}/graph` - Save full graph `{nodes, edges, viewport}`
 
 ## Environment Variables
 

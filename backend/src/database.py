@@ -64,7 +64,15 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Initialize database tables."""
+    """Initialize database tables for development/testing.
+
+    Note: In production, use Alembic migrations instead of create_all().
+    This function is used for:
+    - Local development (quick setup without running migrations)
+    - Test fixtures (create tables before each test)
+
+    For production deployments, run: `alembic upgrade head`
+    """
     # Import models to register them with Base.metadata
     from src.models.models import Edge, Model, Node  # noqa: F401
     from src.projects.models import Project  # noqa: F401

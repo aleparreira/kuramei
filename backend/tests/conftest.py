@@ -1,13 +1,15 @@
 """Pytest configuration and fixtures."""
 
 import os
+import tempfile
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-# Use shared in-memory SQLite for tests (set before importing app)
-# The ?cache=shared option allows multiple connections to share the same database
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:?cache=shared"
+# Use a temporary file-based SQLite for tests (more reliable than in-memory)
+# Each test run gets a fresh temp file
+_test_db_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_test_db_file.name}"
 
 from src.database import Base, engine  # noqa: E402
 from src.main import app  # noqa: E402
