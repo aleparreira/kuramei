@@ -554,3 +554,125 @@ class TestChangeSetService:
                 )
 
             assert "already exists" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_add_node_with_cost(
+        self, db_session: AsyncSession, project_and_model: tuple[str, str]
+    ):
+        """Test adding a node with cost information."""
+        _, model_id = project_and_model
+        service = ChangeSetService(db_session)
+
+        cost_data = {
+            "monthlyUSD": 150.00,
+            "confidence": "estimated",
+            "breakdown": {"compute": 100.00, "storage": 50.00},
+        }
+
+        operations = [
+            AddNodeOp(
+                op="add_node",
+                node=NodeSpec(
+                    type="database",
+                    name="PostgreSQL",
+                    description="Main database",
+                    cost=cost_data,
+                ),
+            )
+        ]
+
+        result = await service.apply_operations(
+            model_id=model_id,
+            operations=operations,
+            source="chat",
+        )
+
+        # Verify node was created with cost
+        assert len(result.nodes) == 1
+        assert result.nodes[0]["name"] == "PostgreSQL"
+        assert result.nodes[0]["cost"] == cost_data
+        assert result.nodes[0]["cost"]["monthlyUSD"] == 150.00
+        assert result.nodes[0]["cost"]["confidence"] == "estimated"
+        assert result.nodes[0]["cost"]["breakdown"]["compute"] == 100.00
+
+    @pytest.mark.asyncio
+    async def test_update_node_cost(
+        self, db_session: AsyncSession, project_and_model: tuple[str, str]
+    ):
+        """Test updating a node's cost information."""
+        _, model_id = project_and_model
+        service = ChangeSetService(db_session)
+
+        # First add a node without cost
+        operations1 = [
+            AddNodeOp(
+                op="add_node",
+                node=NodeSpec(type="service", name="API Gateway"),
+            )
+        ]
+        await service.apply_operations(model_id=model_id, operations=operations1)
+
+        # Update with cost in a new session
+        async with async_session_maker() as session2:
+            service2 = ChangeSetService(session2)
+            new_cost = {
+                "monthlyUSD": 75.00,
+                "confidence": "actual",
+            }
+            operations2 = [
+                UpdateNodeOp(
+                    op="update_node",
+                    node_id="API Gateway",
+                    updates={"cost": new_cost},
+                )
+            ]
+            result = await service2.apply_operations(
+                model_id=model_id, operations=operations2
+            )
+
+        # Verify cost was updated
+        assert len(result.nodes) == 1
+        assert result.nodes[0]["name"] == "API Gateway"
+        assert result.nodes[0]["cost"] == new_cost
+        assert result.nodes[0]["cost"]["monthlyUSD"] == 75.00
+        assert result.nodes[0]["cost"]["confidence"] == "actual"
+
+    @pytest.mark.asyncio
+    async def test_update_node_cost_to_null(
+        self, db_session: AsyncSession, project_and_model: tuple[str, str]
+    ):
+        """Test clearing a node's cost information."""
+        _, model_id = project_and_model
+        service = ChangeSetService(db_session)
+
+        # Add a node with cost
+        operations1 = [
+            AddNodeOp(
+                op="add_node",
+                node=NodeSpec(
+                    type="service",
+                    name="Expensive Service",
+                    cost={"monthlyUSD": 500.00, "confidence": "estimated"},
+                ),
+            )
+        ]
+        await service.apply_operations(model_id=model_id, operations=operations1)
+
+        # Clear cost in a new session
+        async with async_session_maker() as session2:
+            service2 = ChangeSetService(session2)
+            operations2 = [
+                UpdateNodeOp(
+                    op="update_node",
+                    node_id="Expensive Service",
+                    updates={"cost": None},
+                )
+            ]
+            result = await service2.apply_operations(
+                model_id=model_id, operations=operations2
+            )
+
+        # Verify cost was cleared
+        assert len(result.nodes) == 1
+        assert result.nodes[0]["name"] == "Expensive Service"
+        assert result.nodes[0]["cost"] is None

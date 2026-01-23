@@ -55,6 +55,7 @@ class Node(Base):
     __table_args__ = (
         Index("ix_nodes_model_id", "model_id"),
         Index("ix_nodes_parent_node_id", "parent_node_id"),
+        Index("ix_nodes_level", "level"),
     )
 
     id: Mapped[str] = mapped_column(
