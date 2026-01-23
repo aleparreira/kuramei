@@ -17,13 +17,14 @@ import {
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { MessageSquare, Layers, DollarSign, Download } from 'lucide-react';
+import { MessageSquare, Layers, DollarSign, Download, Sun, Moon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ChatPanel } from '@/components/chat';
 import { Breadcrumbs } from '@/components/diagram/Breadcrumbs';
 import { ExportModal } from '@/components/export';
 import { CostNode, formatCurrency, type CostData } from '@/components/diagram/CostNode';
+import { edgeTypes } from '@/components/diagram/AnimatedEdge';
 import { useChat, type ChatMessage } from '@/hooks/useChat';
 import {
   loadGraph,
@@ -37,6 +38,7 @@ import {
   type Viewport,
 } from '@/lib/api';
 import { useCanvasStore, type ZoomLevel, type NavigationItem } from '@/stores/canvasStore';
+import { useTheme } from '@/context';
 
 // Config from DESIGN-SYSTEM.md
 const canvasConfig = {
@@ -124,15 +126,16 @@ function parseCostData(costData: Record<string, unknown> | null | undefined): Co
 function nodeFromBackend(node: NodeData, hasChildren: boolean = false): Node {
   const cost = parseCostData(node.cost);
   // Use costNode type for all nodes (it handles cost display gracefully)
-  const nodeType = 'costNode';
+  const reactFlowNodeType = 'costNode';
 
   return {
     id: node.id,
-    type: nodeType,
+    type: reactFlowNodeType,
     position: { x: node.position.x, y: node.position.y },
     data: {
       label: node.name,
       level: node.level,
+      nodeType: node.type, // Original backend type (service, database, etc.)
       hasChildren,
       backendParentId: node.parent_node_id,
       cost,
@@ -161,15 +164,23 @@ function edgeToBackend(edge: Edge): EdgeData {
 
 /**
  * Convert backend edge to React Flow format.
+ * Uses the backend edge type as the React Flow type to route to the correct edge component.
+ * Also passes the backend type in data for styling decisions within AnimatedEdge.
  */
 function edgeFromBackend(edge: EdgeData): Edge {
+  // Use 'animated' as default type if not specified, which triggers AnimatedEdge
+  const edgeType = edge.type && edge.type !== 'default' ? edge.type : 'animated';
+
   return {
     id: edge.id,
-    type: edge.type === 'default' ? undefined : edge.type,
+    type: edgeType,
     source: edge.source_node_id,
     target: edge.target_node_id,
     label: edge.label || undefined,
-    data: edge.properties || {},
+    data: {
+      ...(edge.properties || {}),
+      backendType: edge.type, // Pass original backend type for styling
+    },
   };
 }
 
@@ -540,6 +551,7 @@ function FlowCanvas({
       nodes={enhancedNodes}
       edges={edges}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
