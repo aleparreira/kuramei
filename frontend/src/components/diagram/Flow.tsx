@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -20,13 +20,15 @@ import '@xyflow/react/dist/style.css';
 import { MessageSquare } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { ChatPanel, type Message } from '@/components/chat';
+import { ChatPanel } from '@/components/chat';
+import { useChat, type ChatMessage } from '@/hooks/useChat';
 import {
   loadGraph,
   saveGraph,
   bootstrapMvp,
   ApiError,
   type GraphData,
+  type GraphResponse,
   type NodeData,
   type EdgeData,
   type Viewport,
@@ -134,6 +136,10 @@ interface FlowCanvasProps {
   onSuccess: (message: string) => void;
   isChatOpen: boolean;
   onToggleChat: () => void;
+  /** Callback to register graph update handler from parent */
+  onRegisterGraphUpdate?: (
+    handler: (graph: GraphResponse) => void
+  ) => void;
 }
 
 function FlowCanvas({
@@ -142,12 +148,29 @@ function FlowCanvas({
   onSuccess,
   isChatOpen,
   onToggleChat,
+  onRegisterGraphUpdate,
 }: FlowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { screenToFlowPosition, setViewport, toObject } = useReactFlow();
+
+  // Handle graph updates from chat (SSE)
+  const handleGraphUpdate = useCallback(
+    (graph: GraphResponse) => {
+      console.log('[FlowCanvas] Applying graph update from chat');
+      setNodes(graph.nodes.map(nodeFromBackend));
+      setEdges(graph.edges.map(edgeFromBackend));
+      onSuccess('Architecture updated via chat');
+    },
+    [setNodes, setEdges, onSuccess]
+  );
+
+  // Register the graph update handler with parent
+  useEffect(() => {
+    onRegisterGraphUpdate?.(handleGraphUpdate);
+  }, [onRegisterGraphUpdate, handleGraphUpdate]);
 
   // Load graph on mount
   useEffect(() => {
@@ -305,10 +328,6 @@ function FlowCanvas({
 
 // --- Wrapper with bootstrap ---
 
-// --- Message ID generator ---
-let messageIdCounter = 0;
-const getNextMessageId = () => `msg_${Date.now()}_${++messageIdCounter}`;
-
 export default function Flow() {
   const [modelId, setModelId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -317,23 +336,36 @@ export default function Flow() {
 
   // Chat state
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
-  const [streamingContent, setStreamingContent] = useState<string | undefined>(
-    undefined
-  );
-  const streamingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
 
-  // Cleanup streaming interval on unmount
-  useEffect(() => {
-    return () => {
-      if (streamingIntervalRef.current) {
-        clearInterval(streamingIntervalRef.current);
-      }
-    };
-  }, []);
+  // Graph update handler - will be set by FlowCanvas
+  const [graphUpdateHandler, setGraphUpdateHandler] = useState<
+    ((graph: GraphResponse) => void) | null
+  >(null);
+
+  // useChat hook for SSE streaming
+  const {
+    messages,
+    streamingContent,
+    isLoading: isLoadingChat,
+    error: chatError,
+    sendMessage,
+  } = useChat({
+    modelId: modelId || '',
+    onGraphUpdate: useCallback(
+      (graph: GraphResponse) => {
+        // Forward to FlowCanvas via the registered handler
+        graphUpdateHandler?.(graph);
+      },
+      [graphUpdateHandler]
+    ),
+    onOperations: useCallback((operations: unknown[]) => {
+      // Log operations for debugging
+      console.log('[Flow] Operations applied:', operations.length);
+    }, []),
+  });
+
+  // Convert chat messages to the format expected by ChatPanel
+  const chatMessages: ChatMessage[] = messages;
 
   // Bootstrap MVP on mount
   useEffect(() => {
@@ -380,53 +412,20 @@ export default function Flow() {
     setIsChatOpen(false);
   }, []);
 
-  const handleSendMessage = useCallback((content: string) => {
-    // Clear any existing streaming interval
-    if (streamingIntervalRef.current) {
-      clearInterval(streamingIntervalRef.current);
-      streamingIntervalRef.current = null;
+  // Register graph update handler from FlowCanvas
+  const handleRegisterGraphUpdate = useCallback(
+    (handler: (graph: GraphResponse) => void) => {
+      setGraphUpdateHandler(() => handler);
+    },
+    []
+  );
+
+  // Show chat error in status bar
+  useEffect(() => {
+    if (chatError) {
+      handleError(chatError);
     }
-
-    // Add user message
-    const userMessage: Message = {
-      id: getNextMessageId(),
-      role: 'user',
-      content,
-    };
-    setMessages((prev) => [...prev, userMessage]);
-
-    // TODO: fn-2-9xx.7 will implement actual SSE streaming
-    // For now, simulate a placeholder response
-    setIsLoadingChat(true);
-    setStreamingContent('');
-
-    // Simulate streaming response for UI testing
-    const placeholderResponse =
-      'This is a placeholder response. SSE streaming will be implemented in the next task.';
-    let index = 0;
-    streamingIntervalRef.current = setInterval(() => {
-      if (index < placeholderResponse.length) {
-        setStreamingContent(
-          (prev) => (prev || '') + placeholderResponse[index]
-        );
-        index++;
-      } else {
-        if (streamingIntervalRef.current) {
-          clearInterval(streamingIntervalRef.current);
-          streamingIntervalRef.current = null;
-        }
-        // Add final assistant message
-        const assistantMessage: Message = {
-          id: getNextMessageId(),
-          role: 'assistant',
-          content: placeholderResponse,
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        setStreamingContent(undefined);
-        setIsLoadingChat(false);
-      }
-    }, 20);
-  }, []);
+  }, [chatError, handleError]);
 
   if (isBootstrapping) {
     return (
@@ -463,6 +462,7 @@ export default function Flow() {
               onSuccess={handleSuccess}
               isChatOpen={isChatOpen}
               onToggleChat={handleToggleChat}
+              onRegisterGraphUpdate={handleRegisterGraphUpdate}
             />
           )}
         </ReactFlowProvider>
@@ -486,8 +486,8 @@ export default function Flow() {
       <ChatPanel
         isOpen={isChatOpen}
         onClose={handleCloseChat}
-        messages={messages}
-        onSendMessage={handleSendMessage}
+        messages={chatMessages}
+        onSendMessage={sendMessage}
         isLoading={isLoadingChat}
         streamingContent={streamingContent}
       />
