@@ -74,7 +74,14 @@ async def init_db() -> None:
     For production deployments, run: `alembic upgrade head`
     """
     # Import models to register them with Base.metadata
-    from src.models.models import Edge, Model, Node  # noqa: F401
+    from src.models.models import (  # noqa: F401
+        ChangeSet,
+        Conversation,
+        Edge,
+        Message,
+        Model,
+        Node,
+    )
     from src.projects.models import Project  # noqa: F401
 
     async with engine.begin() as conn:

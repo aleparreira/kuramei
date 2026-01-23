@@ -196,3 +196,129 @@ class GraphResponse(BaseModel):
     nodes: list[NodeResponse]
     edges: list[EdgeResponse]
     viewport: dict[str, float] | None = None
+
+
+# --- Conversation schemas ---
+
+
+class ConversationBase(BaseModel):
+    """Base schema for conversation data."""
+
+    title: str | None = None
+
+
+class ConversationCreate(ConversationBase):
+    """Schema for creating a conversation."""
+
+    model_id: str
+
+
+class ConversationCreateNested(ConversationBase):
+    """Schema for creating a conversation in nested endpoint.
+
+    model_id comes from URL path, not request body.
+    """
+
+    pass
+
+
+class ConversationUpdate(BaseModel):
+    """Schema for updating a conversation (all fields optional)."""
+
+    title: str | None = None
+
+
+class ConversationResponse(ConversationBase):
+    """Schema for conversation responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    model_id: str
+    created_at: datetime
+    updated_at: datetime
+
+
+# --- Message schemas ---
+
+
+class MessageBase(BaseModel):
+    """Base schema for message data."""
+
+    role: str  # "user" | "assistant"
+    content: str
+
+
+class MessageCreate(MessageBase):
+    """Schema for creating a message."""
+
+    pass
+
+
+class MessageResponse(MessageBase):
+    """Schema for message responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    conversation_id: str
+    created_at: datetime
+
+
+# --- ChangeSet schemas ---
+
+
+class OperationBase(BaseModel):
+    """Base schema for a single operation in a changeset."""
+
+    op: str  # "add_node" | "update_node" | "delete_node" | "add_edge" | "update_edge" | "delete_edge"
+    node: dict[str, Any] | None = None  # For node operations
+    edge: dict[str, Any] | None = None  # For edge operations
+    node_id: str | None = None  # For update/delete operations
+    edge_id: str | None = None  # For update/delete operations
+
+
+class ChangeSetBase(BaseModel):
+    """Base schema for changeset data."""
+
+    source: str  # "chat" | "manual"
+    summary: str | None = None
+    operations: list[OperationBase]
+
+
+class ChangeSetCreate(ChangeSetBase):
+    """Schema for creating a changeset."""
+
+    model_id: str
+    message_id: str | None = None
+
+
+class ChangeSetResponse(BaseModel):
+    """Schema for changeset responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    model_id: str
+    message_id: str | None
+    source: str
+    summary: str | None
+    operations: list[dict[str, Any]]  # JSON array
+    status: str
+    created_at: datetime
+
+
+# --- Chat API schemas ---
+
+
+class ChatMessageRequest(BaseModel):
+    """Schema for sending a message in a conversation."""
+
+    content: str
+
+
+class ChatStreamEvent(BaseModel):
+    """Schema for SSE stream events."""
+
+    type: str  # "token" | "operations" | "error" | "done"
+    data: Any
