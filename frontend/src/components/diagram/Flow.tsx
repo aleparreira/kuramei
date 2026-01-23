@@ -174,15 +174,27 @@ function edgeFromBackend(edge: EdgeData): Edge {
 let nodeIdCounter = 0;
 const getNextId = () => `node_${Date.now()}_${++nodeIdCounter}`;
 
-// --- Level descriptions for tooltips ---
+// --- Level labels and descriptions ---
+const levelLabels: Record<ZoomLevel, string> = {
+  L0: 'System',
+  L1: 'Domain',
+  L2: 'Service',
+  L3: 'Infra',
+};
+
+const levelDescriptions: Record<ZoomLevel, string> = {
+  L0: 'System view (CEO)',
+  L1: 'Domain view (CTO)',
+  L2: 'Service view (Architect)',
+  L3: 'Infrastructure view (DevOps)',
+};
+
 function getLevelDescription(level: ZoomLevel): string {
-  const descriptions: Record<ZoomLevel, string> = {
-    L0: 'System view (CEO)',
-    L1: 'Domain view (CTO)',
-    L2: 'Service view (Architect)',
-    L3: 'Infrastructure view (DevOps)',
-  };
-  return descriptions[level];
+  return levelDescriptions[level];
+}
+
+function getLevelLabel(level: ZoomLevel): string {
+  return levelLabels[level];
 }
 
 // --- Main component ---
@@ -576,9 +588,9 @@ function FlowCanvas({
               size="sm"
               onClick={() => handleLevelChange(level)}
               title={getLevelDescription(level)}
-              className="min-w-[40px]"
+              className="min-w-[60px]"
             >
-              {level}
+              {getLevelLabel(level)}
             </Button>
           ))}
           <Button
