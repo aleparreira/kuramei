@@ -309,9 +309,26 @@ async def save_graph(
         # Flush nodes to database before creating edges (edges reference nodes via FK)
         await db.flush()
 
-        # Create new edges
+        # Build set of valid node IDs for this model (from current batch)
+        valid_node_ids = {node.id for node in created_nodes}
+
+        # Create new edges with validation
         created_edges = []
         for edge_data in graph_data.edges:
+            # Validate that source and target nodes belong to this model
+            if edge_data.source_node_id not in valid_node_ids:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Edge source node {edge_data.source_node_id} not found in model",
+                )
+            if edge_data.target_node_id not in valid_node_ids:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Edge target node {edge_data.target_node_id} not found in model",
+                )
+
             edge = Edge(
                 id=edge_data.id,
                 model_id=model_id,

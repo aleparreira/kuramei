@@ -386,6 +386,46 @@ async def test_save_graph_nonexistent_model(client):
 
 
 @pytest.mark.asyncio
+async def test_save_graph_rejects_invalid_edge_references(client):
+    """Test that edges referencing non-existent nodes are rejected."""
+    # Create project and model
+    project_resp = await client.post(
+        f"{API}/projects", json={"name": "Edge Validation Project"}
+    )
+    project_id = project_resp.json()["id"]
+
+    model_resp = await client.post(
+        f"{API}/projects/{project_id}/models",
+        json={"name": "Edge Validation Model"},
+    )
+    model_id = model_resp.json()["id"]
+
+    # Try to save graph with edge referencing non-existent node
+    invalid_graph = {
+        "nodes": [
+            {
+                "id": "valid-node",
+                "type": "service",
+                "name": "Valid Service",
+                "position": {"x": 0, "y": 0},
+            },
+        ],
+        "edges": [
+            {
+                "id": "invalid-edge",
+                "type": "calls",
+                "source_node_id": "valid-node",
+                "target_node_id": "non-existent-node",  # This node doesn't exist
+            },
+        ],
+    }
+
+    response = await client.put(f"{API}/models/{model_id}/graph", json=invalid_graph)
+    assert response.status_code == 400
+    assert "not found in model" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_validation_error_returns_400(client):
     """Test that validation errors return 400 instead of 422."""
     # Send invalid data (missing required field 'name')
