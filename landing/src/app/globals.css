@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  /* Kuramei Colors */
+  --background: #f9f9fe;
+  --foreground: #454360;
+  --primary: #ff4c60;
+  --primary-hover: #e6364a;
+  --secondary: #65ebe7;
+  --secondary-hover: #4dd4d0;
+  --muted: #596172;
+  --muted-foreground: #9492a6;
+  --border: #e4e4eb;
+  --card: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1a1a2e;
+    --foreground: #f3f3f8;
+    --primary: #ff4c60;
+    --primary-hover: #ff7a8a;
+    --secondary: #65ebe7;
+    --secondary-hover: #8ff0ed;
+    --muted: #45455f;
+    --muted-foreground: #9492a6;
+    --border: #373750;
+    --card: #232340;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background: var(--secondary);
+  color: var(--foreground);
+}
