@@ -227,6 +227,14 @@ class ChangeSetService:
         """Add a new node to the graph."""
         node_spec = op.node
 
+        # Check for duplicate name in current graph state
+        # This catches edge cases like: rename A->B, then add A (would create duplicate if B was renamed back)
+        if node_spec.name in graph.name_to_id:
+            raise ChangeSetApplicationError(
+                f"Cannot add node '{node_spec.name}': a node with that name already exists",
+                operation_index=index,
+            )
+
         # Calculate position if not provided
         position = node_spec.position
         if position is None:

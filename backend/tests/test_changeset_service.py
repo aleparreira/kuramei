@@ -517,3 +517,40 @@ class TestChangeSetService:
 
             assert len(result.nodes) == 1
             assert result.nodes[0]["name"] == "NodeA"
+
+    @pytest.mark.asyncio
+    async def test_rename_then_add_same_name_fails(
+        self, db_session: AsyncSession, project_and_model: tuple[str, str]
+    ):
+        """Test that rename followed by add of same name in batch fails (P2 fix)."""
+        _, model_id = project_and_model
+        service = ChangeSetService(db_session)
+
+        # Add initial node
+        operations1 = [
+            AddNodeOp(op="add_node", node=NodeSpec(type="service", name="Original"))
+        ]
+        await service.apply_operations(model_id=model_id, operations=operations1)
+
+        # Try to rename Original->NewName and then add a new node also called NewName
+        # This should fail because after rename, NewName already exists
+        async with async_session_maker() as session2:
+            service2 = ChangeSetService(session2)
+            operations2 = [
+                UpdateNodeOp(
+                    op="update_node",
+                    node_id="Original",
+                    updates={"name": "NewName"},
+                ),
+                AddNodeOp(
+                    op="add_node",
+                    node=NodeSpec(type="database", name="NewName"),  # Duplicate!
+                ),
+            ]
+
+            with pytest.raises(ChangeSetApplicationError) as exc_info:
+                await service2.apply_operations(
+                    model_id=model_id, operations=operations2
+                )
+
+            assert "already exists" in str(exc_info.value)
