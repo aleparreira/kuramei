@@ -217,6 +217,25 @@ function FlowCanvas({ modelId, onError, onSuccess }: FlowCanvasProps) {
     }
   }, [modelId, toObject, onError, onSuccess]);
 
+  // Add node at center of current viewport
+  const handleAddNode = useCallback(() => {
+    const flow = toObject();
+    const { x, y, zoom } = flow.viewport;
+
+    // Calculate center of visible area
+    const centerX = (-x + window.innerWidth / 2) / zoom;
+    const centerY = (-y + window.innerHeight / 2) / zoom;
+
+    const newNode: Node = {
+      id: getNextId(),
+      type: 'default',
+      position: { x: centerX - 75, y: centerY - 20 }, // Offset to center the node
+      data: { label: `Node ${nodes.length + 1}` },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+  }, [setNodes, toObject, nodes.length]);
+
   if (isLoading) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-background">
@@ -255,6 +274,9 @@ function FlowCanvas({ modelId, onError, onSuccess }: FlowCanvasProps) {
         maskColor="rgba(69, 67, 96, 0.1)"
       />
       <Panel position="top-right" className="flex gap-2">
+        <Button variant="outline" onClick={handleAddNode}>
+          + Add Node
+        </Button>
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
