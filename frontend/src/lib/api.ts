@@ -4,7 +4,7 @@
  * Handles communication with the FastAPI backend for graph persistence.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Constants for MVP
 const DEFAULT_PROJECT_NAME = 'Default Project';
@@ -75,13 +75,14 @@ export interface Model {
 // --- API Error class ---
 
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public detail?: unknown
-  ) {
+  status: number;
+  detail?: unknown;
+
+  constructor(message: string, status: number, detail?: unknown) {
     super(message);
     this.name = 'ApiError';
+    this.status = status;
+    this.detail = detail;
   }
 }
 

@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kuramei Frontend
 
-## Getting Started
+React + Vite + TypeScript frontend for the Kuramei AI Architecture Platform.
 
-First, run the development server:
+## Stack
+
+- **Vite** - Fast build tool and dev server
+- **React 19** - UI library
+- **TypeScript** - Type safety
+- **Tailwind CSS 4** - Styling
+- **shadcn/ui** - UI components
+- **React Flow** - Diagram canvas
+
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Install dependencies
+pnpm install
+
+# Run development server (port 3001)
 pnpm dev
-# or
-bun dev
+
+# Build for production
+pnpm build
+
+# Preview production build
+pnpm preview
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Architecture Decision
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Why Vite instead of Next.js?**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The editor is a 100% client-side SPA (React Flow canvas, local state, no SEO needed). Next.js's SSR/SSG features add overhead without benefit for this use case. Vite provides:
 
-## Learn More
+- Faster HMR (instant feedback)
+- Smaller bundle size
+- No SSR workarounds (`ssr: false`, dynamic imports)
+- Simpler mental model for SPA
 
-To learn more about Next.js, take a look at the following resources:
+The `landing/` page (kuramei.ai) remains Next.js for SEO benefits.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_URL` | `http://localhost:8000` | Backend API URL |
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+├── components/
+│   ├── diagram/       # React Flow components
+│   └── ui/            # shadcn/ui components
+├── lib/
+│   ├── api.ts         # Backend API client
+│   └── utils.ts       # Utility functions
+├── App.tsx            # Main app component
+├── main.tsx           # Entry point
+└── index.css          # Global styles + Kuramei theme
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Development
+
+The frontend expects the backend running on port 8000:
+
+```bash
+# Terminal 1 - Backend
+cd backend
+source .venv/bin/activate
+uvicorn src.main:app --reload --port 8000
+
+# Terminal 2 - Frontend
+cd frontend
+pnpm dev
+```
+
+Then open http://localhost:3001

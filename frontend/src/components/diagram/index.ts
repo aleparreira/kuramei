@@ -1,1 +1,1 @@
-export { DiagramEditor } from './DiagramEditor';
+export { default as Flow } from './Flow';
