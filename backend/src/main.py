@@ -13,6 +13,7 @@ from src.config import get_settings
 from src.database import close_db
 from src.models.router import router as models_router
 from src.projects.router import router as projects_router
+from src.terraform.router import router as terraform_router
 
 settings = get_settings()
 
@@ -65,6 +66,11 @@ async def validation_exception_handler(
 app.include_router(projects_router, prefix="/api/v1/projects", tags=["projects"])
 app.include_router(models_router, prefix="/api/v1/models", tags=["models"])
 app.include_router(chat_router, prefix="/api/v1/chat", tags=["chat"])
+app.include_router(
+    terraform_router,
+    prefix="/api/v1/models/{model_id}/terraform",
+    tags=["terraform"],
+)
 
 
 @app.get("/health")
