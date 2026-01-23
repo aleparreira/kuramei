@@ -1,15 +1,15 @@
 """FastAPI application entry point."""
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import get_settings
 from src.database import close_db, init_db
-from src.projects.router import router as projects_router
 from src.models.router import router as models_router
+from src.projects.router import router as projects_router
 
 settings = get_settings()
 

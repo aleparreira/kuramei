@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database import Base
@@ -13,6 +13,9 @@ class Model(Base):
     """Architecture Model SQLAlchemy model."""
 
     __tablename__ = "models"
+    __table_args__ = (
+        Index("ix_models_project_id", "project_id"),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36),
@@ -45,6 +48,10 @@ class Node(Base):
     """Node (element) SQLAlchemy model."""
 
     __tablename__ = "nodes"
+    __table_args__ = (
+        Index("ix_nodes_model_id", "model_id"),
+        Index("ix_nodes_parent_node_id", "parent_node_id"),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36),
@@ -87,6 +94,11 @@ class Edge(Base):
     """Edge (relation/flow) SQLAlchemy model."""
 
     __tablename__ = "edges"
+    __table_args__ = (
+        Index("ix_edges_model_id", "model_id"),
+        Index("ix_edges_source_node_id", "source_node_id"),
+        Index("ix_edges_target_node_id", "target_node_id"),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36),

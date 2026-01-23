@@ -63,8 +63,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     """Initialize database tables."""
     # Import models to register them with Base.metadata
+    from src.models.models import Edge, Model, Node  # noqa: F401
     from src.projects.models import Project  # noqa: F401
-    from src.models.models import Model, Node, Edge  # noqa: F401
 
     async with engine.begin() as conn:
         # Enable foreign keys for this connection (SQLite only)
