@@ -3,6 +3,7 @@ import { X, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatMessage, type MessageRole } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import { PromptSuggestions } from './PromptSuggestions';
 import { cn } from '@/lib/utils';
 
 export interface Message {
@@ -130,10 +131,14 @@ export function ChatPanel({
             <p className="text-sm font-medium text-muted-foreground">
               Start a conversation
             </p>
-            <p className="mt-1 max-w-[200px] text-xs text-muted-foreground/70">
+            <p className="mt-1 mb-4 max-w-[200px] text-xs text-muted-foreground/70">
               Describe what you want to create and I'll help you build your
               architecture.
             </p>
+            <PromptSuggestions
+              onSelectPrompt={setInputValue}
+              className="max-w-[280px]"
+            />
           </div>
         ) : (
           <div className="flex flex-col gap-3">

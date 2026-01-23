@@ -6,3 +6,6 @@ export type { ChatMessageProps, MessageRole } from './ChatMessage';
 
 export { ChatInput } from './ChatInput';
 export type { ChatInputProps } from './ChatInput';
+
+export { PromptSuggestions } from './PromptSuggestions';
+export type { PromptSuggestionsProps } from './PromptSuggestions';
