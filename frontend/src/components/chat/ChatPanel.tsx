@@ -98,7 +98,7 @@ export function ChatPanel({
   return (
     <div
       className={cn(
-        'flex h-full w-80 flex-col border-l border-border bg-card',
+        'flex h-full w-1/3 min-w-[280px] max-w-md flex-col border-l border-border bg-card',
         'shrink-0'
       )}
     >
