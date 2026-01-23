@@ -1,9 +1,14 @@
 """Pytest configuration and fixtures."""
 
+import os
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from src.main import app
+# Use in-memory SQLite for tests (set before importing app)
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+
+from src.main import app  # noqa: E402
 
 
 @pytest.fixture

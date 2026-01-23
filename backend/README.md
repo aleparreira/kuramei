@@ -36,7 +36,9 @@ uvicorn src.main:app --reload --port 8000
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./data/kuramei.db` | Database connection URL |
 | `DEBUG` | `false` | Enable debug mode (SQL logging) |
-| `CORS_ORIGINS` | `http://localhost:3001` | Allowed CORS origins |
+| `CORS_ORIGINS` | `["http://localhost:3001"]` | Allowed CORS origins (JSON array) |
+
+**Note**: `CORS_ORIGINS` must be a JSON array, e.g.: `CORS_ORIGINS='["http://localhost:3001","http://localhost:3000"]'`
 
 ## Development
 

@@ -46,11 +46,11 @@ async def create_model(
     db.add(model)
     try:
         await db.commit()
-    except IntegrityError as e:
+    except IntegrityError:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create model: {str(e)}",
+            detail="Failed to create model: invalid data or constraint violation",
         )
     await db.refresh(model)
     return model

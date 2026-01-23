@@ -5,7 +5,6 @@ from collections.abc import AsyncGenerator
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import Pool
 
 from src.config import get_settings
 
@@ -15,18 +14,21 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
-    connect_args={"check_same_thread": False},
+    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
 )
 
 
-# Enable SQLite foreign keys and WAL mode on each connection
-@event.listens_for(Pool, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Enable SQLite foreign keys and WAL mode for better concurrency."""
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.close()
+# Enable SQLite foreign keys and WAL mode on each connection (only for SQLite)
+if "sqlite" in settings.database_url:
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        """Enable SQLite foreign keys and WAL mode for better concurrency."""
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        # WAL mode only for file-based SQLite (not in-memory)
+        if ":memory:" not in settings.database_url:
+            cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.close()
 
 
 # Session factory
@@ -65,8 +67,9 @@ async def init_db() -> None:
     from src.models.models import Model, Node, Edge  # noqa: F401
 
     async with engine.begin() as conn:
-        # Enable foreign keys for this connection
-        await conn.execute(text("PRAGMA foreign_keys=ON"))
+        # Enable foreign keys for this connection (SQLite only)
+        if "sqlite" in settings.database_url:
+            await conn.execute(text("PRAGMA foreign_keys=ON"))
         await conn.run_sync(Base.metadata.create_all)
 
 
