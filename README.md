@@ -148,21 +148,27 @@ Architecture decisions shouldn't be locked in proprietary tools. Export everythi
 | **DevOps & SRE** | Infrastructure as code | Terraform export from day one |
 | **Startups** | Move fast | MVP architecture in minutes, not weeks |
 
+## Philosophy
+
+> **Conduct systems, not just build them.**
+
+Kuramei is built by [Maestros](docs/maestros/manifesto.md) — engineers and architects who use AI to reason about complex systems.
+
+If you're using AI to architect, to build, to make decisions — you're already a Maestro.
+
+Come practice with us.
+
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) first.
+We welcome contributors of all levels.
 
-```bash
-# Fork the repository
-# Create a feature branch
-git checkout -b feature/amazing-feature
+**Quick start:**
+1. Read the [Contributing Guide](CONTRIBUTING.md)
+2. Say hi in [Discussions](https://github.com/aleparreira/kuramei/discussions)
+3. Pick a [`good-first-issue`](https://github.com/aleparreira/kuramei/labels/good-first-issue)
+4. Send a PR
 
-# Commit your changes
-git commit -m "feat: add amazing feature"
-
-# Push and create a Pull Request
-git push origin feature/amazing-feature
-```
+*You're already a Maestro. Let's build together.*
 
 ## Author
 
