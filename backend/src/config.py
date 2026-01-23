@@ -22,12 +22,16 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/kuramei.db"
 
-    # CORS - allow both default Next.js port (3000) and custom port (3001)
+    # CORS - allow Vite dev server ports (3000-3010 range for port conflicts)
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
+        "http://localhost:3002",
+        "http://localhost:3003",
+        "http://localhost:3004",
+        "http://localhost:5173",
     ]
 
     # LLM Configuration
