@@ -1,9 +1,10 @@
 """FastAPI router for Kuramei architecture models domain."""
 
 import json
+from enum import Enum
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,15 @@ from src.models.schemas import (
 from src.projects.models import Project
 
 router = APIRouter()
+
+
+class LevelFilter(str, Enum):
+    """Valid level filter values for semantic zoom."""
+
+    L0 = "L0"
+    L1 = "L1"
+    L2 = "L2"
+    L3 = "L3"
 
 
 @router.get("", response_model=list[ModelResponse])
@@ -186,9 +196,23 @@ def _edge_to_response(edge: Edge) -> EdgeResponse:
 @router.get("/{model_id}/graph", response_model=GraphResponse)
 async def get_graph(
     model_id: str,
+    level: LevelFilter | None = Query(
+        default=None,
+        description="Filter nodes by semantic level (L0=System, L1=Domain, L2=Service, L3=Infra)",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> GraphResponse:
-    """Get full graph (nodes + edges) for a model."""
+    """Get full graph (nodes + edges) for a model.
+
+    Optional level filter for semantic zoom:
+    - L0: System level (highest abstraction)
+    - L1: Domain level
+    - L2: Service level
+    - L3: Infrastructure level (most detail)
+
+    When level is provided, only nodes with that level are returned,
+    and edges are filtered to only include those connecting visible nodes.
+    """
     # Verify model exists
     result = await db.execute(select(Model).where(Model.id == model_id))
     model = result.scalar_one_or_none()
@@ -198,16 +222,34 @@ async def get_graph(
             detail=f"Model {model_id} not found",
         )
 
-    # Fetch nodes and edges
-    nodes_result = await db.execute(
-        select(Node).where(Node.model_id == model_id).order_by(Node.created_at)
-    )
-    nodes = nodes_result.scalars().all()
+    # Build nodes query with optional level filter
+    nodes_query = select(Node).where(Node.model_id == model_id)
+    if level is not None:
+        nodes_query = nodes_query.where(Node.level == level.value)
+    nodes_query = nodes_query.order_by(Node.created_at)
 
+    nodes_result = await db.execute(nodes_query)
+    nodes = list(nodes_result.scalars().all())
+
+    # Get visible node IDs for edge filtering
+    visible_node_ids = {node.id for node in nodes}
+
+    # Fetch edges
     edges_result = await db.execute(
         select(Edge).where(Edge.model_id == model_id).order_by(Edge.created_at)
     )
-    edges = edges_result.scalars().all()
+    all_edges = edges_result.scalars().all()
+
+    # Filter edges to only include those connecting visible nodes
+    if level is not None:
+        edges = [
+            edge
+            for edge in all_edges
+            if edge.source_node_id in visible_node_ids
+            and edge.target_node_id in visible_node_ids
+        ]
+    else:
+        edges = list(all_edges)
 
     # Parse viewport from model (stored as JSON text)
     viewport = _parse_json_field(model.viewport)

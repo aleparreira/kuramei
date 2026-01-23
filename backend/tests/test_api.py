@@ -444,3 +444,352 @@ async def test_create_model_nonexistent_project_returns_404(client):
         json={"name": "Orphan Model"},
     )
     assert response.status_code == 404
+
+
+# --- Level filter tests for semantic zoom ---
+
+
+@pytest.mark.asyncio
+async def test_get_graph_with_level_filter(client):
+    """Test that level filter returns only nodes with matching level."""
+    # Create project and model
+    project_resp = await client.post(
+        f"{API}/projects", json={"name": "Level Filter Project"}
+    )
+    project_id = project_resp.json()["id"]
+
+    model_resp = await client.post(
+        f"{API}/projects/{project_id}/models",
+        json={"name": "Level Filter Model"},
+    )
+    model_id = model_resp.json()["id"]
+
+    # Save graph with nodes at different levels
+    graph_data = {
+        "nodes": [
+            {
+                "id": "l1-node-1",
+                "type": "domain",
+                "name": "Domain A",
+                "level": "L1",
+                "position": {"x": 0, "y": 0},
+            },
+            {
+                "id": "l1-node-2",
+                "type": "domain",
+                "name": "Domain B",
+                "level": "L1",
+                "position": {"x": 100, "y": 0},
+            },
+            {
+                "id": "l2-node-1",
+                "type": "service",
+                "name": "Service A",
+                "level": "L2",
+                "position": {"x": 0, "y": 100},
+            },
+            {
+                "id": "l2-node-2",
+                "type": "service",
+                "name": "Service B",
+                "level": "L2",
+                "position": {"x": 100, "y": 100},
+            },
+        ],
+        "edges": [
+            {
+                "id": "edge-l1",
+                "type": "calls",
+                "source_node_id": "l1-node-1",
+                "target_node_id": "l1-node-2",
+            },
+            {
+                "id": "edge-l2",
+                "type": "calls",
+                "source_node_id": "l2-node-1",
+                "target_node_id": "l2-node-2",
+            },
+            {
+                "id": "edge-cross",
+                "type": "contains",
+                "source_node_id": "l1-node-1",
+                "target_node_id": "l2-node-1",
+            },
+        ],
+    }
+    await client.put(f"{API}/models/{model_id}/graph", json=graph_data)
+
+    # Test L1 filter - should return only L1 nodes
+    response = await client.get(f"{API}/models/{model_id}/graph?level=L1")
+    assert response.status_code == 200
+    graph = response.json()
+    assert len(graph["nodes"]) == 2
+    assert all(n["level"] == "L1" for n in graph["nodes"])
+
+    # Only edge-l1 should be visible (both endpoints are L1)
+    assert len(graph["edges"]) == 1
+    assert graph["edges"][0]["id"] == "edge-l1"
+
+
+@pytest.mark.asyncio
+async def test_get_graph_with_level_filter_l2(client):
+    """Test L2 level filter."""
+    # Create project and model
+    project_resp = await client.post(
+        f"{API}/projects", json={"name": "L2 Filter Project"}
+    )
+    project_id = project_resp.json()["id"]
+
+    model_resp = await client.post(
+        f"{API}/projects/{project_id}/models",
+        json={"name": "L2 Filter Model"},
+    )
+    model_id = model_resp.json()["id"]
+
+    # Save graph with mixed levels
+    graph_data = {
+        "nodes": [
+            {
+                "id": "l1-node",
+                "type": "domain",
+                "name": "Domain",
+                "level": "L1",
+                "position": {"x": 0, "y": 0},
+            },
+            {
+                "id": "l2-node-1",
+                "type": "service",
+                "name": "Service 1",
+                "level": "L2",
+                "position": {"x": 0, "y": 100},
+            },
+            {
+                "id": "l2-node-2",
+                "type": "service",
+                "name": "Service 2",
+                "level": "L2",
+                "position": {"x": 100, "y": 100},
+            },
+        ],
+        "edges": [
+            {
+                "id": "edge-l2",
+                "type": "calls",
+                "source_node_id": "l2-node-1",
+                "target_node_id": "l2-node-2",
+            },
+        ],
+    }
+    await client.put(f"{API}/models/{model_id}/graph", json=graph_data)
+
+    # Test L2 filter
+    response = await client.get(f"{API}/models/{model_id}/graph?level=L2")
+    assert response.status_code == 200
+    graph = response.json()
+    assert len(graph["nodes"]) == 2
+    assert all(n["level"] == "L2" for n in graph["nodes"])
+    assert len(graph["edges"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_graph_without_level_filter_returns_all(client):
+    """Test that without level filter, all nodes and edges are returned."""
+    # Create project and model
+    project_resp = await client.post(
+        f"{API}/projects", json={"name": "No Filter Project"}
+    )
+    project_id = project_resp.json()["id"]
+
+    model_resp = await client.post(
+        f"{API}/projects/{project_id}/models",
+        json={"name": "No Filter Model"},
+    )
+    model_id = model_resp.json()["id"]
+
+    # Save graph with mixed levels
+    graph_data = {
+        "nodes": [
+            {
+                "id": "l0-node",
+                "type": "system",
+                "name": "System",
+                "level": "L0",
+                "position": {"x": 0, "y": 0},
+            },
+            {
+                "id": "l1-node",
+                "type": "domain",
+                "name": "Domain",
+                "level": "L1",
+                "position": {"x": 0, "y": 100},
+            },
+            {
+                "id": "l2-node",
+                "type": "service",
+                "name": "Service",
+                "level": "L2",
+                "position": {"x": 0, "y": 200},
+            },
+            {
+                "id": "l3-node",
+                "type": "infra",
+                "name": "Infra",
+                "level": "L3",
+                "position": {"x": 0, "y": 300},
+            },
+        ],
+        "edges": [
+            {
+                "id": "edge-1",
+                "type": "contains",
+                "source_node_id": "l0-node",
+                "target_node_id": "l1-node",
+            },
+            {
+                "id": "edge-2",
+                "type": "contains",
+                "source_node_id": "l1-node",
+                "target_node_id": "l2-node",
+            },
+        ],
+    }
+    await client.put(f"{API}/models/{model_id}/graph", json=graph_data)
+
+    # Get graph without filter - should return all
+    response = await client.get(f"{API}/models/{model_id}/graph")
+    assert response.status_code == 200
+    graph = response.json()
+    assert len(graph["nodes"]) == 4
+    assert len(graph["edges"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_graph_invalid_level_returns_422(client):
+    """Test that invalid level value returns 422 validation error."""
+    # Create project and model
+    project_resp = await client.post(
+        f"{API}/projects", json={"name": "Invalid Level Project"}
+    )
+    project_id = project_resp.json()["id"]
+
+    model_resp = await client.post(
+        f"{API}/projects/{project_id}/models",
+        json={"name": "Invalid Level Model"},
+    )
+    model_id = model_resp.json()["id"]
+
+    # Try with invalid level value
+    response = await client.get(f"{API}/models/{model_id}/graph?level=INVALID")
+    # FastAPI returns 422 for enum validation errors (converted to 400 by our handler)
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_get_graph_level_filter_edges_between_visible_nodes_only(client):
+    """Test that edges are only returned when both endpoints are visible."""
+    # Create project and model
+    project_resp = await client.post(
+        f"{API}/projects", json={"name": "Edge Filter Project"}
+    )
+    project_id = project_resp.json()["id"]
+
+    model_resp = await client.post(
+        f"{API}/projects/{project_id}/models",
+        json={"name": "Edge Filter Model"},
+    )
+    model_id = model_resp.json()["id"]
+
+    # Save graph where edges cross levels
+    graph_data = {
+        "nodes": [
+            {
+                "id": "l1-a",
+                "type": "domain",
+                "name": "Domain A",
+                "level": "L1",
+                "position": {"x": 0, "y": 0},
+            },
+            {
+                "id": "l1-b",
+                "type": "domain",
+                "name": "Domain B",
+                "level": "L1",
+                "position": {"x": 100, "y": 0},
+            },
+            {
+                "id": "l2-a",
+                "type": "service",
+                "name": "Service A",
+                "level": "L2",
+                "position": {"x": 0, "y": 100},
+            },
+        ],
+        "edges": [
+            {
+                "id": "edge-l1-l1",
+                "type": "calls",
+                "source_node_id": "l1-a",
+                "target_node_id": "l1-b",
+            },
+            {
+                "id": "edge-l1-l2",
+                "type": "contains",
+                "source_node_id": "l1-a",
+                "target_node_id": "l2-a",
+            },
+        ],
+    }
+    await client.put(f"{API}/models/{model_id}/graph", json=graph_data)
+
+    # L1 filter should only show edge between L1 nodes
+    response = await client.get(f"{API}/models/{model_id}/graph?level=L1")
+    assert response.status_code == 200
+    graph = response.json()
+    assert len(graph["nodes"]) == 2
+    assert len(graph["edges"]) == 1
+    assert graph["edges"][0]["id"] == "edge-l1-l1"
+
+    # L2 filter should show no edges (only one L2 node, edge points to L1)
+    response = await client.get(f"{API}/models/{model_id}/graph?level=L2")
+    assert response.status_code == 200
+    graph = response.json()
+    assert len(graph["nodes"]) == 1
+    assert len(graph["edges"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_graph_level_filter_empty_result(client):
+    """Test level filter returns empty when no nodes match."""
+    # Create project and model
+    project_resp = await client.post(
+        f"{API}/projects", json={"name": "Empty Level Project"}
+    )
+    project_id = project_resp.json()["id"]
+
+    model_resp = await client.post(
+        f"{API}/projects/{project_id}/models",
+        json={"name": "Empty Level Model"},
+    )
+    model_id = model_resp.json()["id"]
+
+    # Save graph with only L1 nodes
+    graph_data = {
+        "nodes": [
+            {
+                "id": "l1-node",
+                "type": "domain",
+                "name": "Domain",
+                "level": "L1",
+                "position": {"x": 0, "y": 0},
+            },
+        ],
+        "edges": [],
+    }
+    await client.put(f"{API}/models/{model_id}/graph", json=graph_data)
+
+    # L3 filter should return empty
+    response = await client.get(f"{API}/models/{model_id}/graph?level=L3")
+    assert response.status_code == 200
+    graph = response.json()
+    assert len(graph["nodes"]) == 0
+    assert len(graph["edges"]) == 0
