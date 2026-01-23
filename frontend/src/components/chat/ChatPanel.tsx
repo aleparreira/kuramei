@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { X, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatMessage, type MessageRole } from './ChatMessage';
@@ -69,8 +69,8 @@ export function ChatPanel({
     []
   );
 
-  // Track scroll position before updates
-  useEffect(() => {
+  // Track scroll position before updates (useLayoutEffect runs before paint)
+  useLayoutEffect(() => {
     wasNearBottomRef.current = isNearBottom();
   }, [messages, isNearBottom]);
 

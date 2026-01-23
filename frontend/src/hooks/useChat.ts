@@ -77,6 +77,9 @@ export function useChat({
   // Ref to track if component is mounted (for async operations)
   const isMountedRef = useRef(true);
 
+  // Request ID to guard against stale callbacks from previous requests
+  const requestIdRef = useRef(0);
+
   // Cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
@@ -88,10 +91,16 @@ export function useChat({
 
   /**
    * Close the current SSE connection.
+   * Increments request ID to invalidate any pending callbacks.
    */
   const close = useCallback(() => {
+    // Increment request ID to make any pending callbacks stale
+    requestIdRef.current++;
     connectionRef.current?.close();
     connectionRef.current = null;
+    // Clear loading state immediately since we're canceling
+    setStreamingContent(undefined);
+    setIsLoading(false);
   }, []);
 
   /**
@@ -101,8 +110,6 @@ export function useChat({
     close();
     setConversationId(null);
     setMessages([]);
-    setStreamingContent(undefined);
-    setIsLoading(false);
     setError(null);
   }, [close]);
 
@@ -116,8 +123,15 @@ export function useChat({
         return;
       }
 
-      // Close any existing connection
+      // Close any existing connection (this increments requestIdRef)
       close();
+
+      // Capture the current request ID - callbacks will check this to avoid stale updates
+      const currentRequestId = requestIdRef.current;
+
+      // Helper to check if this request is still active
+      const isStale = () =>
+        !isMountedRef.current || requestIdRef.current !== currentRequestId;
 
       // Clear previous error
       setError(null);
@@ -137,7 +151,7 @@ export function useChat({
         let currentConversationId = conversationId;
         if (!currentConversationId) {
           const conversation: Conversation = await createConversation(modelId);
-          if (!isMountedRef.current) return;
+          if (isStale()) return;
           currentConversationId = conversation.id;
           setConversationId(currentConversationId);
         }
@@ -151,32 +165,33 @@ export function useChat({
           content,
           {
             onToken: (token: string) => {
-              if (!isMountedRef.current) return;
+              if (isStale()) return;
               accumulatedContent += token;
               setStreamingContent(accumulatedContent);
             },
 
             onOperations: (operations: unknown[]) => {
-              if (!isMountedRef.current) return;
+              if (isStale()) return;
               // Log operations (for debugging)
               console.log('[useChat] Operations received:', operations);
               onOperations?.(operations);
             },
 
             onGraph: (graph: GraphResponse) => {
-              if (!isMountedRef.current) return;
+              if (isStale()) return;
               console.log('[useChat] Graph update received');
               onGraphUpdate?.(graph);
             },
 
             onError: (errorMsg: string) => {
-              if (!isMountedRef.current) return;
+              if (isStale()) return;
               console.error('[useChat] Error:', errorMsg);
               setError(errorMsg);
             },
 
             onDone: () => {
-              if (!isMountedRef.current) return;
+              // Skip finalization if this request was canceled or superseded
+              if (isStale()) return;
               // Finalize the assistant message
               if (accumulatedContent) {
                 const assistantMessage: ChatMessage = {
@@ -195,7 +210,7 @@ export function useChat({
 
         connectionRef.current = connection;
       } catch (err) {
-        if (!isMountedRef.current) return;
+        if (isStale()) return;
         const errorMessage =
           err instanceof Error ? err.message : 'Failed to send message';
         setError(errorMessage);
