@@ -11,6 +11,7 @@
 <p align="center">
   <a href="https://kuramei.ai">Website</a> •
   <a href="#features">Features</a> •
+  <a href="#screenshots">Screenshots</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#roadmap">Roadmap</a> •
@@ -18,7 +19,12 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" />
+  <a href="https://github.com/aleparreira/kuramei/actions/workflows/backend-ci.yml"><img src="https://github.com/aleparreira/kuramei/actions/workflows/backend-ci.yml/badge.svg" alt="Backend CI" /></a>
+  <a href="https://github.com/aleparreira/kuramei/actions/workflows/frontend-ci.yml"><img src="https://github.com/aleparreira/kuramei/actions/workflows/frontend-ci.yml/badge.svg" alt="Frontend CI" /></a>
+  <img src="https://img.shields.io/github/license/aleparreira/kuramei" alt="License" />
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" />
   <img src="https://img.shields.io/badge/AWS-100%25-orange.svg" alt="AWS" />
   <img src="https://img.shields.io/badge/terraform-IaC-purple.svg" alt="Terraform" />
@@ -56,6 +62,26 @@ Describe your system in natural language. Kuramei asks the right questions, gene
 | **Real-time Cost Estimation** | AWS pricing API integration for instant cost visibility |
 | **Terraform Export** | Architecture as code, not just documentation |
 | **Decision Versioning** | Every change is a decision with context: who, when, why |
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/assets/demo-screens/05-full-canvas.png" alt="Architecture Canvas with Chat" width="800" />
+  <br/>
+  <em>Design architectures through AI-powered conversation</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/demo-screens/04-export-modal.png" alt="Terraform Export" width="800" />
+  <br/>
+  <em>Export production-ready Terraform with one click</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/demo-screens/07-dark-mode.png" alt="Dark Mode" width="800" />
+  <br/>
+  <em>Full dark mode support for late-night architecture sessions</em>
+</p>
 
 ## Quick Start
 

@@ -160,6 +160,29 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Demo Section */}
+      <section id="demo" className="py-20 px-6">
+        <div className="max-w-6xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-foreground mb-4">
+            See it in action
+          </h2>
+          <p className="text-muted mb-8 max-w-2xl mx-auto">
+            Watch how Kuramei transforms a simple conversation into a complete architecture diagram with cost estimation
+          </p>
+          <div className="max-w-4xl mx-auto rounded-xl overflow-hidden shadow-2xl border border-border">
+            <img
+              src="/demo.gif"
+              alt="Kuramei demo: describe architecture in chat, visualize as diagram, see costs, export to Terraform"
+              className="w-full"
+              loading="lazy"
+            />
+          </div>
+          <p className="mt-6 text-muted-foreground">
+            Describe your architecture → Visualize with costs → Export Terraform
+          </p>
+        </div>
+      </section>
+
       {/* Who it's for */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto">
