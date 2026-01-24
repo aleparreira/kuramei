@@ -11,10 +11,11 @@ build/
 .next/
 *.egg-info/
 
-# Environment
+# Environment (keep .env.example tracked)
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # IDE
 .idea/
