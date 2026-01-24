@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
 from src.models.models import Edge, Model, Node
-from src.terraform.mappings import get_template_for_type, has_terraform_resource
+from src.terraform.mappings import has_terraform_resource
 from src.terraform.schemas import (
     GenerateResponse,
     TerraformEdge,

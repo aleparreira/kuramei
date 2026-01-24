@@ -1,6 +1,5 @@
 """Tests for the ChangeSet application service."""
 
-import json
 
 import pytest
 from sqlalchemy import select
@@ -20,7 +19,7 @@ from src.chat.schemas import (
     UpdateNodeOp,
 )
 from src.database import async_session_maker
-from src.models.models import ChangeSet, Conversation, Edge, Message, Model, Node
+from src.models.models import ChangeSet, Conversation, Message, Model, Node
 from src.projects.models import Project
 
 

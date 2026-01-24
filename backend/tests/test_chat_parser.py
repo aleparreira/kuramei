@@ -1,6 +1,5 @@
 """Tests for chat operations parser and validator."""
 
-import pytest
 
 from src.chat import (
     AddEdgeOp,

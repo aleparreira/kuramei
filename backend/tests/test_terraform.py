@@ -1,12 +1,10 @@
 """Tests for Terraform generation service."""
 
-import pytest
 from httpx import AsyncClient
 
 from src.terraform.mappings import get_template_for_type, has_terraform_resource
 from src.terraform.schemas import TerraformEdge, TerraformNode
 from src.terraform.service import TerraformGenerator
-
 
 # --- API Tests ---
 
