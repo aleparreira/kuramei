@@ -41,21 +41,6 @@ export function ExportModal({ modelId, isOpen, onClose }: ExportModalProps) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Reset state when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setState({ status: 'idle' });
-      setSelectedFile(null);
-    }
-  }, [isOpen]);
-
-  // Start validation when modal opens
-  useEffect(() => {
-    if (isOpen && state.status === 'idle') {
-      validateAndGenerate();
-    }
-  }, [isOpen, state.status]);
-
   const validateAndGenerate = useCallback(async () => {
     setState({ status: 'validating' });
 
@@ -92,6 +77,21 @@ export function ExportModal({ modelId, isOpen, onClose }: ExportModalProps) {
       setState({ status: 'error', message });
     }
   }, [modelId]);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setState({ status: 'idle' });
+      setSelectedFile(null);
+    }
+  }, [isOpen]);
+
+  // Start validation when modal opens
+  useEffect(() => {
+    if (isOpen && state.status === 'idle') {
+      validateAndGenerate();
+    }
+  }, [isOpen, state.status, validateAndGenerate]);
 
   const handleDownloadZip = useCallback(async () => {
     if (state.status !== 'ready') return;

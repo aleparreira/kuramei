@@ -49,13 +49,12 @@ const nodeTypeIcons: Record<string, typeof Box> = {
 };
 
 /**
- * Get icon component for a node type.
- * @param nodeType - The type of node
- * @returns Icon component from lucide-react
+ * Node icon component that renders the appropriate icon for a node type.
+ * Declared at module level to satisfy react-hooks/static-components.
  */
-function getNodeIcon(nodeType?: string): typeof Box {
-  if (!nodeType) return Box;
-  return nodeTypeIcons[nodeType] || Box;
+function NodeIcon({ nodeType, className }: { nodeType?: string; className?: string }) {
+  const IconComponent = nodeType && nodeTypeIcons[nodeType] ? nodeTypeIcons[nodeType] : Box;
+  return <IconComponent className={className} />;
 }
 
 export interface CostData {
@@ -191,9 +190,6 @@ function CostNodeComponent(props: NodeProps) {
   const level = nodeData?.level;
   const nodeType = nodeData?.nodeType;
 
-  // Get icon component based on node type
-  const Icon = getNodeIcon(nodeType ?? undefined);
-
   return (
     <div
       className={cn(
@@ -216,7 +212,7 @@ function CostNodeComponent(props: NodeProps) {
       <div className="flex flex-col gap-1">
         {/* Node header with icon and label */}
         <div className="flex items-center gap-1.5">
-          <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <NodeIcon nodeType={nodeType ?? undefined} className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           <div className="font-medium text-sm truncate" title={label}>
             {label || 'Node'}
           </div>
