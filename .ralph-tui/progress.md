@@ -103,3 +103,19 @@ Already covers `packages/*` and `apps/*` globs — no manual entry needed for ne
   - **pnpm build 11/11** passes; typecheck 11/11 passes; lint 5/5 passes
 ---
 
+## 2026-02-23 - US-006
+- **What was implemented:** `scripts/smoke-test.ts` — local end-to-end test without Lambda. Generates JWT + UISpecToken directly, writes spec to local KV via wrangler CLI, opens rendered URL in browser. Supports three scenarios: `happy` (default), `expired`, `invalid-jwt`.
+- **Files changed:**
+  - `scripts/smoke-test.ts` — new script: loads `.env.local`, builds UISpecToken, signs JWT, runs wrangler via `spawnSync` (args array), opens URL with `open`/`xdg-open`
+  - `package.json` — added `smoke-test` script: `tsx scripts/smoke-test.ts`; added `tsx ^4.21.0` devDependency
+  - `pnpm-lock.yaml` — updated with `tsx`
+- **Learnings:**
+  - **tsx at workspace root**: `pnpm add -D tsx -w` installs at monorepo root. Script runs directly with `tsx scripts/foo.ts`.
+  - **`scripts/` dir has no tsconfig**: tsx transpiles without strict type checking — no need to wire into tsconfig or turbo pipeline.
+  - **Wrangler 4.x KV command**: `wrangler kv:key` is now `wrangler kv key` (space, not colon). Use `--binding KV --local`. Needs `wrangler.toml` in cwd — run from `apps/ui-worker/`.
+  - **`--path` flag for large values**: pass `--path <file>` instead of inline value to avoid shell quoting issues with JSON.
+  - **spawnSync with args array (no shell)**: use `spawnSync(cmd, [url])` rather than shell string interpolation — avoids injection and satisfies security hooks.
+  - **`import.meta.url` for ESM `__dirname`**: `path.dirname(fileURLToPath(import.meta.url))` — standard pattern for root-level ESM scripts.
+  - **pnpm build 11/11** passes; typecheck 18/18; lint 5/5
+---
+
