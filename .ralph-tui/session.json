@@ -3,10 +3,10 @@
   "sessionId": "d7579da8-d023-46d2-973d-b2fcd1684f76",
   "status": "running",
   "startedAt": "2026-02-23T19:44:32.209Z",
-  "updatedAt": "2026-02-23T19:46:57.113Z",
-  "currentIteration": 0,
+  "updatedAt": "2026-02-23T19:53:23.656Z",
+  "currentIteration": 1,
   "maxIterations": 10,
-  "tasksCompleted": 0,
+  "tasksCompleted": 1,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -17,8 +17,8 @@
       {
         "id": "US-001",
         "title": "UISpec types message e list em @kuramei/ui-engine",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-004a",
@@ -52,7 +52,18 @@
       }
     ]
   },
-  "iterations": [],
+  "iterations": [
+    {
+      "iteration": 1,
+      "status": "completed",
+      "taskId": "US-001",
+      "taskTitle": "UISpec types message e list em @kuramei/ui-engine",
+      "taskCompleted": true,
+      "durationMs": 144893,
+      "startedAt": "2026-02-23T19:44:32.215Z",
+      "endedAt": "2026-02-23T19:46:57.108Z"
+    }
+  ],
   "skippedTaskIds": [],
   "cwd": "/Users/xande/dev/kuramei",
   "activeTaskIds": [],
