@@ -87,11 +87,12 @@
         "pnpm typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "formatWhenPtBr: simple ISO-to-PT-BR format (e.g. '2026-02-24T20:00:00-03:00' → 'Amanhã às 20:00'). No external date lib — use Intl.DateTimeFormat.",
       "dependsOn": [
         "US-004"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-006a",
@@ -182,6 +183,6 @@
       "@kuramei/kv-client replaces inline KV fetch in both Lambda packages",
       "ui-worker READS KV via Wrangler native binding — does NOT use @kuramei/kv-client"
     ],
-    "updatedAt": "2026-02-23T22:15:57.173Z"
+    "updatedAt": "2026-02-23T22:17:54.130Z"
   }
 }

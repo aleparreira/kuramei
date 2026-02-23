@@ -43,6 +43,23 @@ New packages follow this pattern:
   - systemPromptSections should be behavioral contracts (post-tool behavior, edge cases), not routing instructions — routing belongs in tool descriptions
 ---
 
+## 2026-02-23 - US-003
+- Added `list_reminders` tool to `packages/experiences/reminder/src/index.ts`
+- DynamoDB `QueryCommand` with `PK = USER#<userId>` + `FilterExpression status = 'pending'`
+- Client-side sort by `when` ascending (SK is `REMINDER#<ulid>`, not `when`)
+- `formatWhenPtBr`: parses ISO dates with `Intl.DateTimeFormat`; returns "Hoje", "Amanhã", or `DD/MM` format; falls back to raw string if unparseable
+- `getTodayPrefix`: uses `sv-SE` locale with São Paulo timezone to get `YYYY-MM-DD` string
+- `filter='today'`: `when.startsWith(todayPrefix)`; `filter='upcoming'`: `when >= todayPrefix`
+- Empty result → `MessageSpec`; non-empty → `ListSpec` with label + description
+- `systemPromptSection` updated with explicit "Não listar reminders logo após criar..." contract
+- `reminderExperience.tools` updated to `[createReminderTool, listRemindersTool]`
+- `pnpm build` → 15/15, `pnpm typecheck` → clean
+- **Learnings:**
+  - `status` is a DynamoDB reserved word — must alias as `#status` in `ExpressionAttributeNames`
+  - `sv-SE` locale produces `YYYY-MM-DD` format natively — handy for prefix comparisons without string manipulation
+  - `upcoming` filter needs `when >= todayPrefix` to exclude past pending items (DynamoDB `FilterExpression` only filters by `status`, not by date)
+---
+
 ## 2026-02-23 - US-001
 - Created `packages/kv-client/` with `put`, `get`, `del` functions wrapping Cloudflare KV REST API
 - Removed inline `fetch` KV logic from `packages/tools/src/builtin/generate-ui.ts` and `packages/sdk/src/generate-ui-helper.ts`

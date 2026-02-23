@@ -3,10 +3,10 @@
   "sessionId": "192e3f38-24c4-43f7-b2b4-1027bdb219be",
   "status": "running",
   "startedAt": "2026-02-23T22:04:58.860Z",
-  "updatedAt": "2026-02-23T22:15:57.175Z",
-  "currentIteration": 2,
+  "updatedAt": "2026-02-23T22:17:54.133Z",
+  "currentIteration": 3,
   "maxIterations": 10,
-  "tasksCompleted": 2,
+  "tasksCompleted": 3,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -29,8 +29,8 @@
       {
         "id": "US-004",
         "title": "Correção arquitetural — tool descriptions ricas, systemPromptSections como contratos",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-003",
@@ -78,6 +78,16 @@
       "durationMs": 354277,
       "startedAt": "2026-02-23T22:07:44.313Z",
       "endedAt": "2026-02-23T22:13:38.590Z"
+    },
+    {
+      "iteration": 3,
+      "status": "completed",
+      "taskId": "US-004",
+      "taskTitle": "Correção arquitetural — tool descriptions ricas, systemPromptSections como contratos",
+      "taskCompleted": true,
+      "durationMs": 135140,
+      "startedAt": "2026-02-23T22:13:42.031Z",
+      "endedAt": "2026-02-23T22:15:57.171Z"
     }
   ],
   "skippedTaskIds": [],
