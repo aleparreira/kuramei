@@ -10,3 +10,5 @@ export {
   UISpecSchema,
   UISpecTokenSchema,
 } from './spec/schema.js';
+
+export { renderNavigation } from './renderer/navigation.js';
