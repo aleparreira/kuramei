@@ -34,6 +34,25 @@ Already covers `packages/*` and `apps/*` globs — no manual entry needed for ne
   - `pnpm build` passed 9/9 packages (8 previous + ui-engine) on first attempt
 ---
 
+## 2026-02-23 - US-003
+- **What was implemented:** Created `apps/ui-worker/` — Cloudflare Worker with JWT validation, KV lookup, rendering, and CSP header
+- **Files changed:**
+  - `apps/ui-worker/package.json` — new app with `@cloudflare/workers-types` devDep
+  - `apps/ui-worker/tsconfig.json` — overrides base: `module: ESNext`, `moduleResolution: Bundler`, `types: ["@cloudflare/workers-types"]`, `noEmit: true` (no dist needed; wrangler bundles)
+  - `apps/ui-worker/wrangler.toml` — Cloudflare Worker config with KV namespace binding placeholder
+  - `apps/ui-worker/src/validate.ts` — `verifyJWT()` using Web Crypto API (HMAC-SHA256), `parseUISpecToken()` using Zod
+  - `apps/ui-worker/src/renderer.ts` — `render()` delegates to `@kuramei/ui-engine`; `renderInvalidToken()` and `renderExpired()` return inline-CSS error pages with WhatsApp deep link
+  - `apps/ui-worker/src/index.ts` — Worker fetch handler: routes `GET /ui/:token`, validates JWT, reads from KV, renders HTML, adds CSP header on all responses
+  - `pnpm-lock.yaml` — added `@cloudflare/workers-types@^4.0.0`
+- **Learnings:**
+  - **Cloudflare Worker tsconfig pattern:** override `module: ESNext`, `moduleResolution: Bundler`, `types: ["@cloudflare/workers-types"]`, `composite: false`, `noEmit: true` — no dist folder, wrangler bundles
+  - **Turborepo warning "no output files":** expected when `build` uses `tsc --noEmit`. Not a failure; suppress later via turbo.json `outputs: []` for this task if needed
+  - **exactOptionalPropertyTypes + Zod v3:** Zod's inferred type adds `| undefined` to optional fields, conflicting with `exactOptionalPropertyTypes`. Fix: `result.data as UISpecToken` after `safeParse` succeeds — safe since validation already ran
+  - **noUncheckedIndexedAccess + RegExp.match():** `pathMatch[1]` is `string | undefined`; need explicit check even after `pathMatch !== null`
+  - **Web Crypto JWT:** no external library needed for HS256 validation in Workers — `crypto.subtle.importKey` + `crypto.subtle.verify` handle HMAC-SHA256 natively
+  - **pnpm build 10/10** passes (9 previous + ui-worker)
+---
+
 ## 2026-02-23 - US-002
 - **What was implemented:** Created `renderNavigation(spec, token)` function that returns a complete HTML page for navigation
 - **Files changed:**
