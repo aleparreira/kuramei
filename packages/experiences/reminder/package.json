@@ -1,0 +1,31 @@
+{
+  "name": "@kuramei/experience-reminder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reminder Experience Package for Kuramei",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kuramei/sdk": "workspace:*",
+    "@kuramei/tools": "workspace:*",
+    "ulid": "^2.3.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "typescript": "^5.6.0"
+  }
+}
