@@ -204,9 +204,16 @@ export const handler = async (event: AgentProcessorEvent): Promise<void> => {
     };
 
     const sender = new TenantBoundSender(kurameiTenant, new EnvSecretsProvider());
-    const sendResult = await sender.sendText(from, replyText);
-    if (!sendResult.success) {
-      console.error('Failed to send WhatsApp reply', { from, error: sendResult.error });
+    try {
+      const sendResult = await sender.sendText(from, replyText);
+      if (!sendResult.success) {
+        console.error('Failed to send WhatsApp reply', { from, error: sendResult.error });
+      }
+    } catch (err: unknown) {
+      // Log and swallow — session was already updated; rethrowing would trigger
+      // Lambda retry and duplicate LLM/tool runs.
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('sendText threw unexpectedly', { from, error: msg });
     }
   }
 };

@@ -111,14 +111,17 @@ export const handler = async (event: APIGatewayEvent): Promise<APIGatewayRespons
 
     const result = webhookHandler.parsePayload(payload);
 
-    // Dispatch each text message to the agent-processor Lambda (async, fire-and-forget)
-    const invocations: Promise<void>[] = [];
+    // Dispatch text messages to agent-processor sequentially to avoid concurrent
+    // writes to the same DynamoDB session key when a webhook batches rapid messages.
+    let successCount = 0;
+    let totalDispatched = 0;
     for (const parsedMessage of result.messages) {
       if (parsedMessage.message.type !== 'text') continue;
 
       const messageText = (parsedMessage.message as { text?: { body?: string } }).text?.body ?? '';
       if (!messageText) continue;
 
+      totalDispatched++;
       const correlationId = `${parsedMessage.from}-${Date.now()}`;
       const agentEvent: AgentProcessorEvent = {
         from: parsedMessage.from,
@@ -130,24 +133,18 @@ export const handler = async (event: APIGatewayEvent): Promise<APIGatewayRespons
           : {}),
       };
 
-      invocations.push(invokeAgentProcessor(agentEvent));
-    }
-
-    const results = await Promise.allSettled(invocations);
-    let successCount = 0;
-    for (const result of results) {
-      if (result.status === 'rejected') {
-        const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
-        console.error('Failed to invoke agent-processor', { error: msg });
-      } else {
+      try {
+        await invokeAgentProcessor(agentEvent);
         successCount++;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('Failed to invoke agent-processor', { from: parsedMessage.from, error: msg });
       }
     }
 
     // Return 500 only if ALL dispatches failed — allows WhatsApp to retry when no
-    // message was processed. Partial failures still return 200 to avoid duplicates
-    // from retrying already-successful invocations.
-    if (invocations.length > 0 && successCount === 0) {
+    // message was processed at all.
+    if (totalDispatched > 0 && successCount === 0) {
       return { statusCode: 500, body: 'All dispatches failed' };
     }
 
