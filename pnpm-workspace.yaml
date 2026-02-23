@@ -2,3 +2,4 @@ packages:
   - 'packages/*'
   - 'packages/experiences/*'
   - 'apps/*'
+  - 'infra/*'

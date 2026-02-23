@@ -1,10 +1,15 @@
-name = "ui-worker"
+name = "kuramei-ui"
 main = "src/index.ts"
-compatibility_date = "2024-11-01"
+compatibility_date = "2025-01-01"
 
 [[kv_namespaces]]
 binding = "KV"
 id = "PLACEHOLDER_KV_ID"
+
+# Routes: serve UI pages on app.kuramei.app
+[[routes]]
+pattern = "app.kuramei.app/*"
+zone_name = "kuramei.app"
 
 # Secrets (set via Wrangler CLI before deploy):
 #   wrangler secret put KURAMEI_JWT_SECRET

@@ -16,6 +16,23 @@ New packages follow this pattern:
 
 ---
 
+## 2026-02-23 - US-002
+- Created `infra/cdk/` CDK package with 4 stacks: DynamoStack, AgentStack, WebhookStack, SchedulerStack
+- DynamoStack: `kuramei-main` table (TTL) + `kuramei-reminders` table with GSI `status-when-index`
+- AgentStack: Lambda `kuramei-agent-processor` (arm64, Node 20, 60s timeout, 512MB), ESM bundle
+- WebhookStack: Lambda `kuramei-webhook-handler` (arm64, Node 20, 30s timeout) + LambdaRestApi
+- SchedulerStack: Lambda `kuramei-reminder-scheduler` (arm64, Node 20, 5m timeout) + EventBridge rate(1 min)
+- Updated `apps/ui-worker/wrangler.toml`: name=kuramei-ui, route app.kuramei.app/*, updated compatibility_date
+- Created `docs/runbook-deploy.md`: 8-step deploy guide (AWS prereqs → CDK bootstrap → deploy → Secrets Manager → Wrangler → DNS → Meta webhook → smoke test)
+- Created `.env.production.example`: all required env var keys for Lambda
+- Updated `pnpm-workspace.yaml`: added `infra/*` glob
+- **Learnings:**
+  - `NodejsFunction`'s `bundling.format` requires `OutputFormat.ESM` (enum), not the string `'esm'` — even with `as const`, it's not assignable to the enum type
+  - CDK's strict types (`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`) can conflict with CDK's own API surface — override these two in infra/cdk's tsconfig
+  - `infra/*` workspace glob is needed in `pnpm-workspace.yaml` (not covered by `packages/*`)
+  - CDK tsconfig uses `rootDir: "."` (not `./src`) since CDK apps have both `bin/` and `lib/` as top-level dirs
+---
+
 ## 2026-02-23 - US-001
 - Created `packages/kv-client/` with `put`, `get`, `del` functions wrapping Cloudflare KV REST API
 - Removed inline `fetch` KV logic from `packages/tools/src/builtin/generate-ui.ts` and `packages/sdk/src/generate-ui-helper.ts`
