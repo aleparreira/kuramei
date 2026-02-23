@@ -54,6 +54,9 @@ Todos os renderers retornam HTML completo com:
   - `defineTool<TInput>` com genérico explícito resulta em `ToolDefinition<TInput>[]` não assignable a `ToolDefinition<unknown>[]` (ExperiencePackage.tools) — usar `defineTool({...})` sem genérico; Zod faz o parse internamente no handler
   - Mesmo padrão do `navigationExperience` confirmado: handler recebe `unknown`, Zod valida, TypeScript satisfeito
 
+### buildSystemPrompt Pattern
+`buildSystemPrompt(base, packages)` em `@kuramei/sdk` — concatena base + seções de cada package no formato `== <name> ==\n<section>`, separadas por `\n\n`. Consumidores (agent-processor) chamam `experiences.flatMap(e => e.tools.map(adaptTool))` para coletar todas as tools.
+
 ---
 
 ## [2026-02-23] - US-004a
@@ -66,6 +69,20 @@ Todos os renderers retornam HTML completo com:
   - Dependência circular `@kuramei/sdk` → `@kuramei/tools` → `@kuramei/sdk` impede fazer o generate-ui tool um thin wrapper: Turborepo detecta ciclos no grafo de build e falha. A AC "becomes a thin wrapper" não foi satisfeita; o helper em sdk existe para uso por consumidores externos ao ToolRegistry (ex: futuro `create_reminder`)
   - Para evitar ciclos em monorepos Turborepo, nunca crie dependências que fechem um loop nas referências TypeScript project + npm
   - `pnpm install` (sem `--frozen-lockfile`) necessário ao adicionar dependência nova em workspace
+
+---
+
+## [2026-02-23] - US-004b
+- Criado `packages/sdk/src/system-prompt.ts` com `buildSystemPrompt(base, packages): string`
+- Exportado `buildSystemPrompt` de `packages/sdk/src/index.ts`
+- `apps/agent-processor/package.json`: adicionadas deps `@kuramei/sdk`, `@kuramei/experience-navigation`, `@kuramei/experience-reminder`
+- `apps/agent-processor/tsconfig.json`: adicionadas references para sdk, experience-navigation, experience-reminder
+- `apps/agent-processor/src/index.ts`: carrega `navigationExperience` e `reminderExperience`, usa `buildSystemPrompt` para compor system prompt (PT-BR), coleta tools via `experiences.flatMap(e => e.tools.map(adaptTool))`
+- Files: `packages/sdk/src/system-prompt.ts`, `packages/sdk/src/index.ts`, `apps/agent-processor/src/index.ts`, `apps/agent-processor/package.json`, `apps/agent-processor/tsconfig.json`
+- **Learnings:**
+  - `pnpm install --frozen-lockfile` falha ao adicionar deps; usar `pnpm install` sem flag para atualizar lockfile automaticamente
+  - `experiences.flatMap(e => e.tools.map(adaptTool))` é o padrão limpo para coletar tools de múltiplos experience packages
+  - buildSystemPrompt output: `[base]\n\n== <name> ==\n<section>` para cada package, separados por `\n\n`
 
 ---
 
