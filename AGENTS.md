@@ -29,7 +29,7 @@ Meta Webhook ──► webhook-handler (Lambda)
                       └──► Cloudflare KV (UI specs)
                                 │
                                 ▼
-                      kuramei.app/ui/{token}
+                      ${KURAMEI_BASE_URL}/ui/{token}
                       (Cloudflare Worker — static renderer)
 ```
 
@@ -147,7 +147,7 @@ const tenantId = process.env.TENANT_ID
 
 1. **Spec Schema** — freeze JSON spec format the LLM generates
 2. **Renderer** — TypeScript that transforms spec → HTML (static, not AI-generated)
-3. **Cloudflare Worker** — serves `kuramei.app/ui/{token}`, validates JWT, renders
+3. **Cloudflare Worker** — serves `${KURAMEI_BASE_URL}/ui/{token}`, validates JWT, renders
 4. **KV + Token** — agent-processor writes spec to KV with TTL, generates JWT URL
 
 ---

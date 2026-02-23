@@ -27,13 +27,13 @@ WhatsApp → webhook-handler Lambda
            2. Gera JWT assinado com KURAMEI_JWT_SECRET
            3. PUT na Cloudflare KV REST API (TTL 3600s)
               └→ chave = hash do token
-           4. Retorna URL: https://kuramei.app/ui/{token}
+           4. Retorna URL: ${KURAMEI_BASE_URL}/ui/{token}
              ↓
          WhatsApp recebe URL
              ↓
          Usuário abre no browser
              ↓
-         Cloudflare Worker (kuramei.app/ui/:token)
+         Cloudflare Worker (${KURAMEI_BASE_URL}/ui/:token)
            1. Extrai token da URL
            2. Valida JWT (secret em Wrangler)
            3. GET spec do KV pelo hash
@@ -108,7 +108,7 @@ export interface UISpecToken {
 ### US-003 — Cloudflare Worker: Roteamento e Segurança
 
 **Como** usuário que recebe o link,
-**Quero** abrir `kuramei.app/ui/{token}` e ver a página correta,
+**Quero** abrir `${KURAMEI_BASE_URL}/ui/{token}` e ver a página correta,
 **Para que** eu possa navegar para o destino.
 
 **Acceptance criteria:**
@@ -174,7 +174,7 @@ await fetch(url, {
 - [ ] Tool `generate_ui` implementada em `@kuramei/tools`
 - [ ] Assina JWT com `KURAMEI_JWT_SECRET` (HS256, `exp` = now + 3600s)
 - [ ] Chama Cloudflare KV REST API para escrever spec (TTL 3600s)
-- [ ] Retorna URL `https://kuramei.app/ui/{token}`
+- [ ] Retorna URL `${KURAMEI_BASE_URL}/ui/{token}`
 - [ ] Falha na escrita no KV → lança erro que o agent-client captura e responde ao usuário
 - [ ] Todas as 4 variáveis documentadas no `.env.example`
 - [ ] `CLOUDFLARE_API_TOKEN` configurado no AWS Secrets Manager junto com `KURAMEI_JWT_SECRET`
@@ -292,6 +292,7 @@ WHATSAPP_ACCESS_TOKEN=
 DYNAMODB_TABLE=
 
 # Novas no Sprint 2
+KURAMEI_BASE_URL=          # ex: https://kuramei.ai (prod) ou http://localhost:8787 (local)
 KURAMEI_JWT_SECRET=        # openssl rand -hex 32 — salvar em .env.local
 CLOUDFLARE_ACCOUNT_ID=     # SSM Parameter Store
 CLOUDFLARE_KV_NAMESPACE_ID=# SSM Parameter Store
@@ -323,7 +324,7 @@ wrangler secret put KURAMEI_JWT_SECRET
 
 | Questão | Decisão |
 |---------|---------|
-| Domínio `kuramei.app` | Não bloqueia smoke test. Resolver antes do deploy de produção. |
+| Domínio base | Domínio real é `kuramei.ai`. URL nunca hardcoded — sempre via `KURAMEI_BASE_URL` (prod: `https://kuramei.ai`, local: `http://localhost:8787`). |
 | `KURAMEI_JWT_SECRET` | Gerar com `openssl rand -hex 32`. Salvar em `.env.local`. Adicionar ao AWS Secrets Manager e Wrangler secrets antes do deploy. |
 | KV compartilhado Lambda↔Worker | **Não compartilha memória.** Lambda usa REST API da Cloudflare para escrever. Worker usa binding KV nativo. |
 
