@@ -1,8 +1,15 @@
-import { renderNavigation } from '@kuramei/ui-engine';
+import { renderNavigation, renderMessage, renderList } from '@kuramei/ui-engine';
 import type { UISpec, UISpecToken } from '@kuramei/ui-engine';
 
 export function render(spec: UISpec, token: UISpecToken): string {
-  return renderNavigation(spec, token);
+  switch (spec.type) {
+    case 'navigation':
+      return renderNavigation(spec, token);
+    case 'message':
+      return renderMessage(spec, token);
+    case 'list':
+      return renderList(spec, token);
+  }
 }
 
 export function renderInvalidToken(whatsappUrl: string): string {
