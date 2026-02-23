@@ -133,15 +133,16 @@ export const handler = async (event: APIGatewayEvent): Promise<APIGatewayRespons
       invocations.push(invokeAgentProcessor(agentEvent));
     }
 
-    try {
-      await Promise.all(invocations);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('Failed to invoke agent-processor', { error: msg });
-      return { statusCode: 500, body: 'Failed to dispatch message' };
+    const results = await Promise.allSettled(invocations);
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        console.error('Failed to invoke agent-processor', { error: msg });
+      }
     }
 
-    // WhatsApp requires 200 OK response within 20 seconds
+    // Always return 200 — WhatsApp retries on non-200, which would re-dispatch
+    // already-successful invocations and cause duplicate messages.
     return { statusCode: 200, body: 'OK' };
   }
 
