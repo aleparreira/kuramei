@@ -64,6 +64,8 @@
 
 **Justificativa:** Latência mínima no edge. KV ideal para TTL curto (1h). Worker não executa código gerado por IA.
 
+**Mecanismo de escrita no KV (correção Arcos, 2026-02-23):** Lambda (AWS) não tem binding direto ao Cloudflare KV — são dois clouds diferentes. A escrita é feita via **Cloudflare KV REST API** (`PUT .../accounts/{id}/storage/kv/namespaces/{ns}/values/{key}?expiration_ttl=3600`). O Worker lê via binding KV nativo no Wrangler.
+
 ---
 
 ### [2025-01] Multi-tenancy

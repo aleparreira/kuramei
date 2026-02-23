@@ -20,7 +20,7 @@ Meta Webhook ──► webhook-handler (Lambda)
                       └──► Cloudflare KV (UI specs)
                                 │
                                 ▼
-                      kuramei.app/ui/{token}
+                      ${KURAMEI_BASE_URL}/ui/{token}
                       (Cloudflare Worker)
                                 │
                                 ▼
@@ -77,7 +77,7 @@ kuramei/
 
 ```
 LLM gera JSON spec → KV.put(token, spec, TTL=1h)
-→ JWT assinado com token → URL = kuramei.app/ui/{jwt}
+→ JWT assinado com token → URL = ${KURAMEI_BASE_URL}/ui/{jwt}
 → Cloudflare Worker recebe request
 → Valida JWT, extrai token, busca spec no KV
 → Renderer transforma spec em HTML → response

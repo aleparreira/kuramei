@@ -1,7 +1,7 @@
 {
-  "name": "@kuramei/webhook-handler",
+  "name": "@kuramei/agent-processor",
   "version": "0.1.0",
-  "description": "WhatsApp webhook Lambda handler for Kuramei",
+  "description": "Agent processing Lambda for Kuramei — resolves identity, manages session, calls AgentClient",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
@@ -14,10 +14,12 @@
     "@kuramei/agent": "workspace:*",
     "@kuramei/conversation": "workspace:*",
     "@kuramei/presence": "workspace:*",
+    "@kuramei/tools": "workspace:*",
     "@kuramei/whatsapp": "workspace:*"
   },
   "devDependencies": {
-    "@aws-sdk/client-lambda": "^3.995.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
     "typescript": "^5.6.0"
   }
 }

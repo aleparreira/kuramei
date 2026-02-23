@@ -5,8 +5,5 @@
     "rootDir": "./src"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/**/*.test.ts"],
-  "references": [
-    { "path": "../ui-engine" }
-  ]
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
 }

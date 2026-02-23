@@ -1,8 +1,8 @@
 {
-  "name": "@kuramei/tools",
+  "name": "@kuramei/ui-engine",
   "version": "0.0.1",
   "private": true,
-  "description": "Tool registration SDK",
+  "description": "UI Spec Schema and Renderer for Kuramei Generative UI Engine",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +22,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@kuramei/ui-engine": "workspace:*"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

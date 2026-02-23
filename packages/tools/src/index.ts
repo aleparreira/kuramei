@@ -23,3 +23,5 @@ export type { IToolRegistry } from './registry.js';
 
 export { Tool, extractTools, registerToolClass } from './decorators.js';
 export type { ToolDecoratorOptions } from './decorators.js';
+
+export { generateUiTool } from './builtin/generate-ui.js';

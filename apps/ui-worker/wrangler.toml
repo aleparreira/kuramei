@@ -1,0 +1,11 @@
+name = "ui-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "PLACEHOLDER_KV_ID"
+
+# Secrets (set via Wrangler CLI before deploy):
+#   wrangler secret put KURAMEI_JWT_SECRET
+#   wrangler secret put WHATSAPP_NUMBER
