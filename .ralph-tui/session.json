@@ -3,10 +3,10 @@
   "sessionId": "192e3f38-24c4-43f7-b2b4-1027bdb219be",
   "status": "running",
   "startedAt": "2026-02-23T22:04:58.860Z",
-  "updatedAt": "2026-02-23T22:22:06.431Z",
-  "currentIteration": 5,
+  "updatedAt": "2026-02-23T22:26:03.312Z",
+  "currentIteration": 6,
   "maxIterations": 10,
-  "tasksCompleted": 5,
+  "tasksCompleted": 6,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -47,8 +47,8 @@
       {
         "id": "US-006b",
         "title": "Experience Package Cotação (@kuramei/experience-currency)",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-005",
@@ -108,6 +108,16 @@
       "durationMs": 108075,
       "startedAt": "2026-02-23T22:17:57.564Z",
       "endedAt": "2026-02-23T22:19:45.639Z"
+    },
+    {
+      "iteration": 6,
+      "status": "completed",
+      "taskId": "US-006b",
+      "taskTitle": "Experience Package Cotação (@kuramei/experience-currency)",
+      "taskCompleted": true,
+      "durationMs": 137366,
+      "startedAt": "2026-02-23T22:19:49.061Z",
+      "endedAt": "2026-02-23T22:22:06.427Z"
     }
   ],
   "skippedTaskIds": [],

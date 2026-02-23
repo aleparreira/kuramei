@@ -165,12 +165,13 @@
         "Add reminder-scheduler Lambda config to infra/cdk/lib/scheduler-stack.ts (update the stack created in US-002)"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "BLOCKER: phone number must be stored in reminder DynamoDB item (not just hashed userId). Coordinate with create_reminder handler in US-003 to store rawPhone or phoneNumber directly. If context.userId is the WhatsApp phone number, store it directly.",
       "dependsOn": [
         "US-002",
         "US-003"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     }
   ],
   "metadata": {
@@ -185,6 +186,6 @@
       "@kuramei/kv-client replaces inline KV fetch in both Lambda packages",
       "ui-worker READS KV via Wrangler native binding — does NOT use @kuramei/kv-client"
     ],
-    "updatedAt": "2026-02-23T22:22:06.428Z"
+    "updatedAt": "2026-02-23T22:26:03.309Z"
   }
 }

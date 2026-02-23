@@ -84,6 +84,21 @@ New packages follow this pattern:
   - `tsc --build` with project references requires `"composite": true` in depended-on packages — already set in `tsconfig.base.json`
 ---
 
+## 2026-02-23 - US-005
+- Created `apps/reminder-scheduler/` with `package.json`, `tsconfig.json`, `src/index.ts`
+- Lambda handler: queries GSI `status-when-index` with `#status = :pending AND #when <= :now`, Limit 25
+- For each triggered reminder: sends WhatsApp via `TenantBoundSender` (`⏰ Lembrete: *{text}*`)
+- After sending: updates DynamoDB status → `triggered` + `triggeredAt`, or `failed` + `failedAt`
+- Updated `packages/experiences/reminder/src/index.ts`: `create_reminder` now stores `phoneNumber: context.userId` in DynamoDB item
+- Updated `infra/cdk/lib/scheduler-stack.ts`: added comments for `WHATSAPP_PHONE_NUMBER_ID` and `WHATSAPP_ACCESS_TOKEN` (set manually post-deploy)
+- `pnpm build` → 18/18, `pnpm typecheck` → 31/31 clean
+- **Learnings:**
+  - `status` is a DynamoDB reserved word even in `KeyConditionExpression` on GSI — must alias as `#status` in `ExpressionAttributeNames` (same as FilterExpression)
+  - `context.userId` in `@kuramei/tools` is the raw WhatsApp phone number — can be stored directly as `phoneNumber` in DynamoDB for use by scheduler
+  - `TenantBoundSender` needs only `whatsappPhoneId` (non-secret) and `whatsappTokenSecret` (env var name). PHONE_NUMBER_ID is set as Lambda env var; ACCESS_TOKEN is injected post-deploy
+  - `apps/*` glob already in `pnpm-workspace.yaml` — no update needed for new app packages
+---
+
 ## 2026-02-23 - US-006b
 - Created `packages/experiences/currency/` with `package.json`, `tsconfig.json`, `src/index.ts`
 - `convert_currency` tool: fetches `https://open.er-api.com/v6/latest/{from}`, extracts `rates[to]`

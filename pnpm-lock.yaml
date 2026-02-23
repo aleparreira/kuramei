@@ -70,6 +70,22 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  apps/reminder-scheduler:
+    dependencies:
+      '@kuramei/whatsapp':
+        specifier: workspace:*
+        version: link:../../packages/whatsapp
+    devDependencies:
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.0.0
+        version: 3.995.0
+      '@aws-sdk/lib-dynamodb':
+        specifier: ^3.0.0
+        version: 3.995.0(@aws-sdk/client-dynamodb@3.995.0)
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   apps/ui-worker:
     dependencies:
       '@kuramei/ui-engine':
