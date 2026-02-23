@@ -2,7 +2,7 @@
  * Agent Client - Main orchestration layer
  */
 
-import type { Session, Message } from '@kuramei/conversation';
+import type { Session, Message, PendingApproval } from '@kuramei/conversation';
 import type {
   AgentClient,
   AgentContext,
@@ -138,7 +138,13 @@ export class DefaultAgentClient implements AgentClient {
           await this.cache.set(systemPrompt, messages, tools, response);
         }
 
-        const agentResponse: AgentResponse = { type: 'message', session: currentSession, usage: totalUsage };
+        // [Fix P2] Transition back to idle so subsequent turns start from a valid state
+        const completedSession = this.workflowEngine.transition(
+          currentSession,
+          WorkflowEvents.messageCompleted(correlationId)
+        );
+
+        const agentResponse: AgentResponse = { type: 'message', session: completedSession, usage: totalUsage };
         if (response.content !== undefined) agentResponse.content = response.content;
         return agentResponse;
       }
@@ -155,9 +161,18 @@ export class DefaultAgentClient implements AgentClient {
             )
           );
 
+          // [Fix P1] Persist pendingApproval so hasPendingConfirmation() gates correctly on next turn
+          const now = new Date();
+          const pendingApproval: PendingApproval = {
+            ...this.confirmationHandler.toPendingApproval(confirmationCheck.confirmationRequest),
+            requestedAt: now.toISOString(),
+            expiresAt: new Date(now.getTime() + this.confirmationHandler.timeoutSeconds * 1000).toISOString(),
+          };
+
           const updatedSession: Session = {
             ...currentSession,
             facts: { ...currentSession.facts, pendingToolUse: confirmationCheck.toolUse },
+            pendingApproval,
           };
 
           return {
@@ -176,12 +191,16 @@ export class DefaultAgentClient implements AgentClient {
 
         const executionResults = await toolExecutor.executeMany(response.toolUse, currentSession, correlationId);
 
-        assistantToolUse = response.toolUse;
-        toolResults = executionResults.map((result) => ({
-          toolUseId: result.toolUseId,
-          content: result.result.success ? JSON.stringify(result.result.data) : `Error: ${result.result.error}`,
-          isError: !result.result.success,
-        }));
+        // [Fix P1] Accumulate across iterations — overwriting drops prior tool context from LLM request
+        assistantToolUse = [...(assistantToolUse ?? []), ...response.toolUse];
+        toolResults = [
+          ...(toolResults ?? []),
+          ...executionResults.map((result) => ({
+            toolUseId: result.toolUseId,
+            content: result.result.success ? JSON.stringify(result.result.data) : `Error: ${result.result.error}`,
+            isError: !result.result.success,
+          })),
+        ];
 
         currentSession = this.workflowEngine.transition(
           currentSession,
@@ -250,13 +269,24 @@ export class DefaultAgentClient implements AgentClient {
     };
     delete executedSession.facts['pendingToolUse'];
 
+    // [Fix P2] Emit tool_completed then message_completed to return to idle,
+    // so the next user turn starts from a valid message_received transition
+    const afterToolSession = this.workflowEngine.transition(
+      executedSession,
+      WorkflowEvents.toolCompleted(pendingToolUse.name, executionResult.result.success)
+    );
+    const idleSession = this.workflowEngine.transition(
+      afterToolSession,
+      WorkflowEvents.messageCompleted(correlationId)
+    );
+
     return {
       type: 'tool_executed' as const,
       content: executionResult.result.success
         ? `Ação "${pending.action}" executada com sucesso.`
         : `Erro ao executar "${pending.action}": ${executionResult.result.error}`,
       toolResult: { toolName: executionResult.toolName, result: executionResult.result },
-      session: executedSession,
+      session: idleSession,
     };
   }
 }
