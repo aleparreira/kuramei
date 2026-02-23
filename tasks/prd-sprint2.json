@@ -96,11 +96,12 @@
         "pnpm lint passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Lambda (AWS) and Cloudflare KV are different clouds — MUST use Cloudflare KV REST API, not any binding. CLOUDFLARE_API_TOKEN goes in AWS Secrets Manager alongside KURAMEI_JWT_SECRET.",
       "dependsOn": [
         "US-001"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-005",
@@ -151,6 +152,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-02-23T17:30:03.206Z"
+    "updatedAt": "2026-02-23T17:34:17.693Z"
   }
 }

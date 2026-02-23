@@ -53,6 +53,24 @@ Already covers `packages/*` and `apps/*` globs — no manual entry needed for ne
   - **pnpm build 10/10** passes (9 previous + ui-worker)
 ---
 
+## 2026-02-23 - US-004
+- **What was implemented:** `generate_ui` ToolDefinition in `@kuramei/tools`
+- **Files changed:**
+  - `packages/tools/package.json` — added `@kuramei/ui-engine: workspace:*` dependency
+  - `packages/tools/tsconfig.json` — added project reference to `../ui-engine`
+  - `packages/tools/src/builtin/generate-ui.ts` — new tool: validates NavigationSpec (Zod), builds UISpecToken, signs JWT HS256 (node:crypto HMAC-SHA256), writes to Cloudflare KV REST API, returns shareable URL
+  - `packages/tools/src/index.ts` — exported `generateUiTool`
+  - `.env.example` — created with all required env vars: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_KV_NAMESPACE_ID, CLOUDFLARE_API_TOKEN, KURAMEI_JWT_SECRET, KURAMEI_BASE_URL
+  - `pnpm-lock.yaml` — updated with new workspace dependency link
+- **Learnings:**
+  - **JWT HS256 in Node.js without deps:** `createHmac('sha256', secret).update(signingInput).digest()` from `node:crypto` — no library needed; same approach as the Worker uses Web Crypto
+  - **Token key strategy:** `randomUUID()` from `node:crypto` for the KV key (tokenHash) — ensures uniqueness, stored in JWT `hash` field so Worker can do `KV.get(payload.hash)`
+  - **UISpecToken timestamps:** `createdAt/expiresAt` in **milliseconds** (used by renderer with `Date.now()`); JWT `exp` in **seconds** (`Math.floor(expiresAt / 1000)`) — units differ
+  - **exactOptionalPropertyTypes + Zod v3:** same cast pattern as US-003 — `parsed.data as UISpec` after successful safeParse
+  - **workspace:* dep without frozen-lockfile:** adding a workspace dep requires `pnpm install` (without `--frozen-lockfile`) to update pnpm-lock.yaml
+  - **pnpm build 10/10** passes; typecheck and lint clean
+---
+
 ## 2026-02-23 - US-002
 - **What was implemented:** Created `renderNavigation(spec, token)` function that returns a complete HTML page for navigation
 - **Files changed:**
