@@ -17,7 +17,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@kuramei/tools": "workspace:*"
+    "@kuramei/tools": "workspace:*",
+    "@kuramei/ui-engine": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

@@ -28,5 +28,19 @@ Todos os renderers retornam HTML completo com:
 - **Learnings:**
   - `z.discriminatedUnion` é preferível a `z.union` quando há campo discriminador — melhor inferência de tipo e mensagens de erro
   - `formatTimeRemaining` é helper local duplicado em cada renderer — aceitável para manter renderers independentes sem shared util
+
+---
+
+## [2026-02-23] - US-004a
+- Criado `packages/sdk/src/generate-ui-helper.ts` com função `generateUI(spec, { userId })` — lógica extraída do handler original (JWT HS256, Cloudflare KV REST, URL)
+- Adicionado `@kuramei/ui-engine: workspace:*` em `packages/sdk/package.json` e `{ "path": "../ui-engine" }` nas tsconfig references do sdk
+- Exportado `generateUI`, `GenerateUIContext`, `GenerateUIResult` de `packages/sdk/src/index.ts`
+- `packages/tools/src/builtin/generate-ui.ts` MANTEVE implementação interna (não virou thin wrapper) — comentário adicionado explicando o motivo
+- Files: `packages/sdk/src/generate-ui-helper.ts`, `packages/sdk/src/index.ts`, `packages/sdk/package.json`, `packages/sdk/tsconfig.json`, `packages/tools/src/builtin/generate-ui.ts`
+- **Learnings:**
+  - Dependência circular `@kuramei/sdk` → `@kuramei/tools` → `@kuramei/sdk` impede fazer o generate-ui tool um thin wrapper: Turborepo detecta ciclos no grafo de build e falha. A AC "becomes a thin wrapper" não foi satisfeita; o helper em sdk existe para uso por consumidores externos ao ToolRegistry (ex: futuro `create_reminder`)
+  - Para evitar ciclos em monorepos Turborepo, nunca crie dependências que fechem um loop nas referências TypeScript project + npm
+  - `pnpm install` (sem `--frozen-lockfile`) necessário ao adicionar dependência nova em workspace
+
 ---
 

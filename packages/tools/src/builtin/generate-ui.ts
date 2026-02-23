@@ -3,6 +3,11 @@
  *
  * Builds a UISpecToken, signs a JWT, writes the spec to Cloudflare KV
  * via the REST API, and returns a shareable link.
+ *
+ * Note: the same logic is exposed as generateUI() in @kuramei/sdk for
+ * consumers outside @kuramei/tools (e.g. create_reminder). A circular
+ * dependency prevents @kuramei/tools from importing @kuramei/sdk directly
+ * since @kuramei/sdk already depends on @kuramei/tools.
  */
 
 import { createHmac, createHash, randomUUID } from 'node:crypto';

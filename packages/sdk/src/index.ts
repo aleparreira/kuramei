@@ -13,3 +13,9 @@ export {
   type SystemPromptSection,
   type UISpecTemplate,
 } from './app-config.js';
+
+export {
+  generateUI,
+  type GenerateUIContext,
+  type GenerateUIResult,
+} from './generate-ui-helper.js';

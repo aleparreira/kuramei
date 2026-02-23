@@ -9,6 +9,7 @@
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"],
   "references": [
-    { "path": "../tools" }
+    { "path": "../tools" },
+    { "path": "../ui-engine" }
   ]
 }
