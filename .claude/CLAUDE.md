@@ -39,7 +39,19 @@ Entregues:
 - **`apps/webhook-handler`** — wired: invoca agent-processor (InvocationType: Event)
 - **`scripts/smoke-test.ts`** — teste local end-to-end (`pnpm smoke-test`)
 
-### Sprint 3 — A DEFINIR
+### Sprint 3 — CONCLUÍDO (`7acdf04`, PR #12)
+
+`pnpm build` → 13/13. Smoke test: MessageSpec, ListSpec e fluxo de lembrete passando.
+
+Entregues:
+- **`@kuramei/ui-engine`** — UISpec expandido: `MessageSpec`, `ListSpec` + renderers
+- **`@kuramei/sdk`** — helper `generateUI()` + `buildSystemPrompt(base, packages)`
+- **`@kuramei/experience-navigation`** — `navigationExperience` (ExperiencePackage)
+- **`@kuramei/experience-reminder`** — `reminderExperience` + tool `create_reminder` (DynamoDB)
+- **`apps/agent-processor`** — system prompt composto dinamicamente
+- Fix P1 (Codex): params do `generate_ui` no systemPromptSection corrigidos
+
+### Sprint 4 — A DEFINIR
 
 ---
 
