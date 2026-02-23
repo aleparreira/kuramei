@@ -3,10 +3,10 @@
   "sessionId": "192e3f38-24c4-43f7-b2b4-1027bdb219be",
   "status": "running",
   "startedAt": "2026-02-23T22:04:58.860Z",
-  "updatedAt": "2026-02-23T22:07:40.852Z",
-  "currentIteration": 0,
+  "updatedAt": "2026-02-23T22:13:38.594Z",
+  "currentIteration": 1,
   "maxIterations": 10,
-  "tasksCompleted": 0,
+  "tasksCompleted": 1,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -17,8 +17,8 @@
       {
         "id": "US-001",
         "title": "@kuramei/kv-client — eliminar duplicação de lógica KV",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-002",
@@ -58,7 +58,18 @@
       }
     ]
   },
-  "iterations": [],
+  "iterations": [
+    {
+      "iteration": 1,
+      "status": "completed",
+      "taskId": "US-001",
+      "taskTitle": "@kuramei/kv-client — eliminar duplicação de lógica KV",
+      "taskCompleted": true,
+      "durationMs": 161980,
+      "startedAt": "2026-02-23T22:04:58.866Z",
+      "endedAt": "2026-02-23T22:07:40.846Z"
+    }
+  ],
   "skippedTaskIds": [],
   "cwd": "/Users/xande/dev/kuramei",
   "activeTaskIds": [],
