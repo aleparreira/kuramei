@@ -19,3 +19,5 @@ export {
   type GenerateUIContext,
   type GenerateUIResult,
 } from './generate-ui-helper.js';
+
+export type { ExperiencePackage } from './experience-package.js';
