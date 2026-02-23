@@ -51,7 +51,13 @@ Entregues:
 - **`apps/agent-processor`** — system prompt composto dinamicamente
 - Fix P1 (Codex): params do `generate_ui` no systemPromptSection corrigidos
 
-### Sprint 4 — A DEFINIR
+### Sprint 4 — CONCLUÍDO (`9ab17ad`, PR #13)
+
+`pnpm build` → 18/18. Scheduler dispara lembretes no horário.
+
+Entregues: `@kuramei/kv-client`, CDK stacks (4), correção arquitetural (tool descriptions ricas), `list_reminders`, `experience-weather` (wttr.in), `experience-currency` (open.er-api.com), `reminder-scheduler` (EventBridge rate(1min) → WhatsApp).
+
+### Sprint 5 — A DEFINIR
 
 ---
 
