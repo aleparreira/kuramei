@@ -72,6 +72,20 @@ Todos os renderers retornam HTML completo com:
 
 ---
 
+## [2026-02-23] - US-005
+- Reescrito `scripts/smoke-test.ts` com 3 novos cenários: `message`, `list`, `reminder`, `all`
+- `all` roda `map + message + list` (cenários sem DynamoDB) sequencialmente, abrindo 3 abas no browser
+- `reminder`: importa `reminderExperience` via dynamic import, chama `tools[0].handler` diretamente, verifica `{ success: true, url: string }`, skip gracioso se `REMINDERS_TABLE` não configurado
+- Backward compat mantida: `happy` e sem argumento continuam funcionando como `map`
+- Files: `scripts/smoke-test.ts`
+- **Learnings:**
+  - tsx v4 suporta top-level `await` em arquivos ESM (`"type": "module"` no root package.json)
+  - Dynamic import com caminho relativo `../packages/.../src/index.js` funciona com tsx — ele resolve `.js` → `.ts` para arquivos locais
+  - Não há `tsconfig.json` na raiz — scripts/ não é verificado pelo `pnpm typecheck`; tsx faz transpile sem checagem estrita
+  - Para cenários de erro (expired, invalid-jwt), reusar a mesma `runKvScenario` com opções em vez de duplicar lógica
+
+---
+
 ## [2026-02-23] - US-004b
 - Criado `packages/sdk/src/system-prompt.ts` com `buildSystemPrompt(base, packages): string`
 - Exportado `buildSystemPrompt` de `packages/sdk/src/index.ts`
