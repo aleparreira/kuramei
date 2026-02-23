@@ -1,7 +1,52 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
+out/
+build/
+.next/
+
+# Turborepo
 .turbo/
+
+# TypeScript
 *.tsbuildinfo
+
+# Environment
 .env
 .env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temp / local docs
+tmp/
+temp/
 *.local.md
+docs/temp-local/
+
+# Cloudflare
+.wrangler/
+wrangler.toml.local
+
+# CDK
+cdk.out/
+
+# Codex sessions (large, ephemeral)
+.codex/sessions/

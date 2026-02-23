@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Kuramei — Local Pre-Commit Hook
+# Overrides global hook with project-specific checks
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+source "$SCRIPT_DIR/../lib/governance-utils.sh"
+
+log_header "PRE-COMMIT CHECKS — Kuramei"
+
+ERRORS=0
+WARNINGS=0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Check 1: Sensitive files
+# ─────────────────────────────────────────────────────────────────────────────
+
+STAGED_FILES=$(get_staged_files)
+
+SENSITIVE_PATTERNS=(".env" ".env.local" ".env.production" "credentials.json"
+  "service-account.json" "*.pem" "*.key" "id_rsa" "id_ed25519")
+
+SENSITIVE_FOUND=false
+for file in $STAGED_FILES; do
+  for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+    if [[ "$file" == $pattern || "$file" == *"/$pattern" ]]; then
+      log_block "Sensitive file staged: $file"
+      SENSITIVE_FOUND=true
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+done
+
+[[ "$SENSITIVE_FOUND" == false ]] && log_ok "No sensitive files"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Check 2: ESM imports guard (BLOCKING)
+# ─────────────────────────────────────────────────────────────────────────────
+
+log_info "Checking ESM imports..."
+if ! bash "$SCRIPT_DIR/esm-imports-guard"; then
+  ERRORS=$((ERRORS + 1))
+else
+  log_ok "ESM imports OK"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Check 3: No bare `any` (WARNING)
+# ─────────────────────────────────────────────────────────────────────────────
+
+log_info "Checking for bare 'any' types..."
+if ! bash "$SCRIPT_DIR/no-any-guard"; then
+  WARNINGS=$((WARNINGS + 1))
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Check 4: Lint
+# ─────────────────────────────────────────────────────────────────────────────
+
+cd "$REPO_ROOT"
+log_info "Running lint..."
+if ! pnpm run lint >/dev/null 2>&1; then
+  log_block "Lint failed — run 'pnpm lint' to see errors"
+  ERRORS=$((ERRORS + 1))
+else
+  log_ok "Lint passed"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Check 5: Typecheck
+# ─────────────────────────────────────────────────────────────────────────────
+
+log_info "Running type check..."
+if ! pnpm run typecheck >/dev/null 2>&1; then
+  log_block "Type check failed — run 'pnpm typecheck' to see errors"
+  ERRORS=$((ERRORS + 1))
+else
+  log_ok "Type check passed"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summary
+# ─────────────────────────────────────────────────────────────────────────────
+
+if [[ $ERRORS -gt 0 ]]; then
+  exit_blocked
+fi
+
+if [[ $WARNINGS -gt 0 ]]; then
+  echo ""
+  echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${YELLOW}  ✓ COMMIT ALLOWED — with $WARNINGS warning(s)${NC}"
+  echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+  exit 0
+fi
+
+exit_ok

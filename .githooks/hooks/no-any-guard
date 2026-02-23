@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Guard: Warn on TypeScript `any` without explanatory comment
+# TypeScript strict mode is required. `any` must have an inline comment.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/governance-utils.sh"
+
+WARNINGS=0
+
+TS_FILES=$(get_staged_matching '\.(ts|tsx)$')
+
+if [[ -z "$TS_FILES" ]]; then
+  exit 0
+fi
+
+for file in $TS_FILES; do
+  # Find lines with `: any` or `as any` that don't have an eslint-disable comment above
+  # Simple heuristic: flag `any` usages where the same line has no comment
+  bare_any=$(grep -n ': any\b\|as any\b' "$file" 2>/dev/null | \
+    grep -v '// ' | \
+    grep -v '/\*' | \
+    grep -v 'eslint-disable') || true
+
+  if [[ -n "$bare_any" ]]; then
+    log_warn "Bare 'any' type found in $file (add a comment explaining why):"
+    echo "$bare_any" | while read -r line; do
+      echo "    $line"
+    done
+    echo "    Expected: '// reason why any is needed here'"
+    WARNINGS=$((WARNINGS + 1))
+  fi
+done
+
+# Warning only — does not block commit
+if [[ $WARNINGS -gt 0 ]]; then
+  echo ""
+fi
+
+exit 0

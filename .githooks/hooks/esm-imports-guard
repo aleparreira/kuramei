@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Guard: Enforce .js extensions on relative imports (ESM strict)
+# Kuramei uses strict ESM — TypeScript source files must import with .js extension
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/governance-utils.sh"
+
+ERRORS=0
+
+TS_FILES=$(get_staged_matching '\.(ts|tsx)$')
+
+if [[ -z "$TS_FILES" ]]; then
+  exit 0
+fi
+
+for file in $TS_FILES; do
+  # Find relative imports without .js extension
+  # Pattern: import ... from './something' or '../something' (no extension)
+  bad_imports=$(get_matching_lines "$file" \
+    "from ['\"](\./|\.\./)([^'\"]*[^.][^j][^s])['\"]" | \
+    grep -v "\.js['\"]" | \
+    grep -E "from ['\"](\./|\.\./)") || true
+
+  if [[ -n "$bad_imports" ]]; then
+    log_block "ESM import without .js extension in $file:"
+    echo "$bad_imports" | while read -r line; do
+      echo "    $line"
+    done
+    echo "    Fix: change 'import from \"./foo\"' to 'import from \"./foo.js\"'"
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
+if [[ $ERRORS -gt 0 ]]; then
+  exit 1
+fi
+
+exit 0
