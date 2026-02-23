@@ -31,13 +31,22 @@ Usuário manda mensagem em linguagem natural → sistema entende → age → ger
 
 **Critério de done:** mandar "navegar para Campinas" → receber link que abre mapa no browser.
 
+**📋 PRD completo:** `docs/sprint-2-prd.md` — leia antes de codar qualquer coisa.
+
 Componentes a construir:
 
-1. **Spec Schema** — JSON que o LLM gera (ex: `{ type: "map", query: "Campinas" }`)
-   - Schema congelado **antes** de qualquer linha do Renderer
-2. **Renderer** — TypeScript que transforma spec em HTML
-3. **Cloudflare Worker** — serve `kuramei.app/ui/{token}`, valida JWT, busca spec no KV, renderiza
-4. **KV + Token** — agent-processor escreve no KV com TTL, gera JWT, retorna URL via WhatsApp
+1. **`@kuramei/ui-engine`** — Spec Schema (congelado antes do Renderer) + Renderer
+2. **`apps/ui-worker`** — Cloudflare Worker: valida JWT, busca spec no KV, renderiza HTML, CSP header
+3. **Tool `generate_ui`** — Lambda escreve no KV via **Cloudflare REST API** (não binding direto)
+4. Pipeline WhatsApp → URL completo + smoke test local
+
+> ⚠️ **Correção crítica (Arcos):** Lambda (AWS) e Cloudflare KV são clouds diferentes.
+> O tool `generate_ui` deve chamar a **Cloudflare KV REST API** para escrever o spec:
+> ```
+> PUT https://api.cloudflare.com/client/v4/accounts/{account_id}/storage/kv/namespaces/{namespace_id}/values/{key}?expiration_ttl=3600
+> Authorization: Bearer {CLOUDFLARE_API_TOKEN}
+> ```
+> Variáveis necessárias no Lambda: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_KV_NAMESPACE_ID`, `CLOUDFLARE_API_TOKEN`
 
 ---
 
