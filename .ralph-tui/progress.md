@@ -31,6 +31,19 @@ Todos os renderers retornam HTML completo com:
 
 ---
 
+## [2026-02-23] - US-002
+- Adicionado `ExperiencePackage` interface a `@kuramei/sdk` (`packages/sdk/src/experience-package.ts`)
+- Adicionado `packages/experiences/*` ao `pnpm-workspace.yaml`
+- Criado `packages/experiences/navigation/` com `package.json`, `tsconfig.json` e `src/index.ts`
+- `navigationExperience` exporta: `name`, `description`, `systemPromptSection` (PT-BR) e `tools: [generateUiTool]`
+- Files: `packages/sdk/src/experience-package.ts`, `packages/sdk/src/index.ts`, `pnpm-workspace.yaml`, `packages/experiences/navigation/package.json`, `packages/experiences/navigation/tsconfig.json`, `packages/experiences/navigation/src/index.ts`
+- **Learnings:**
+  - `packages/experiences/*` é um glob de segundo nível — o pnpm-workspace.yaml original com `packages/*` NÃO cobre sub-diretórios automaticamente; precisa de entrada explícita
+  - `ExperiencePackage` foi adicionado em US-002 (não US-004b como indicado no PRD) porque é prerequisito de build — US-004b pode complementar com `buildSystemPrompt`
+  - tsconfig de sub-diretório usa `../../../tsconfig.base.json` (3 níveis acima para `packages/experiences/navigation/`)
+
+---
+
 ## [2026-02-23] - US-004a
 - Criado `packages/sdk/src/generate-ui-helper.ts` com função `generateUI(spec, { userId })` — lógica extraída do handler original (JWT HS256, Cloudflare KV REST, URL)
 - Adicionado `@kuramei/ui-engine: workspace:*` em `packages/sdk/package.json` e `{ "path": "../ui-engine" }` nas tsconfig references do sdk

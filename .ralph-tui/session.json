@@ -3,10 +3,10 @@
   "sessionId": "d7579da8-d023-46d2-973d-b2fcd1684f76",
   "status": "running",
   "startedAt": "2026-02-23T19:44:32.209Z",
-  "updatedAt": "2026-02-23T19:53:23.656Z",
-  "currentIteration": 1,
+  "updatedAt": "2026-02-23T19:56:24.867Z",
+  "currentIteration": 2,
   "maxIterations": 10,
-  "tasksCompleted": 1,
+  "tasksCompleted": 2,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -23,8 +23,8 @@
       {
         "id": "US-004a",
         "title": "Extrair helper generateUI() para uso compartilhado",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-002",
@@ -62,6 +62,16 @@
       "durationMs": 144893,
       "startedAt": "2026-02-23T19:44:32.215Z",
       "endedAt": "2026-02-23T19:46:57.108Z"
+    },
+    {
+      "iteration": 2,
+      "status": "completed",
+      "taskId": "US-004a",
+      "taskTitle": "Extrair helper generateUI() para uso compartilhado",
+      "taskCompleted": true,
+      "durationMs": 383026,
+      "startedAt": "2026-02-23T19:47:00.622Z",
+      "endedAt": "2026-02-23T19:53:23.648Z"
     }
   ],
   "skippedTaskIds": [],
