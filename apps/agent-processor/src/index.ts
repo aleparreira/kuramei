@@ -162,11 +162,12 @@ export const handler = async (event: AgentProcessorEvent): Promise<void> => {
     channelIdentifier: from,
     ...(profileName !== undefined ? { metadata: { profileName } } : {}),
   };
-  const { identity } = await identityResolver.resolve(resolutionContext);
+  await identityResolver.resolve(resolutionContext);
 
   // Session manager
   const sessionManager = new DynamoDBSessionManager(ddb, { tableName }, commands);
-  const session = await sessionManager.getOrCreate('kuramei', identity.id);
+  // Session key uses phone number (from) per documented contract: SESSION#kuramei#<phoneNumber>
+  const session = await sessionManager.getOrCreate('kuramei', from);
 
   // Agent
   const provider = new OpenRouterProvider({
@@ -203,6 +204,9 @@ export const handler = async (event: AgentProcessorEvent): Promise<void> => {
     };
 
     const sender = new TenantBoundSender(kurameiTenant, new EnvSecretsProvider());
-    await sender.sendText(from, replyText);
+    const sendResult = await sender.sendText(from, replyText);
+    if (!sendResult.success) {
+      console.error('Failed to send WhatsApp reply', { from, error: sendResult.error });
+    }
   }
 };

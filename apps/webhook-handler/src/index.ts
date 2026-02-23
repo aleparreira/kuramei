@@ -134,15 +134,23 @@ export const handler = async (event: APIGatewayEvent): Promise<APIGatewayRespons
     }
 
     const results = await Promise.allSettled(invocations);
+    let successCount = 0;
     for (const result of results) {
       if (result.status === 'rejected') {
         const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
         console.error('Failed to invoke agent-processor', { error: msg });
+      } else {
+        successCount++;
       }
     }
 
-    // Always return 200 — WhatsApp retries on non-200, which would re-dispatch
-    // already-successful invocations and cause duplicate messages.
+    // Return 500 only if ALL dispatches failed — allows WhatsApp to retry when no
+    // message was processed. Partial failures still return 200 to avoid duplicates
+    // from retrying already-successful invocations.
+    if (invocations.length > 0 && successCount === 0) {
+      return { statusCode: 500, body: 'All dispatches failed' };
+    }
+
     return { statusCode: 200, body: 'OK' };
   }
 
