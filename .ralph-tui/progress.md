@@ -84,3 +84,22 @@ Already covers `packages/*` and `apps/*` globs — no manual entry needed for ne
   - `pnpm build` 9/9 passes (8 cached + ui-engine rebuilt)
 ---
 
+## 2026-02-23 - US-005
+- **What was implemented:** End-to-end pipeline — `webhook-handler` → async Lambda invocation → `agent-processor` → identity resolution → session → AgentClient with `generate_ui` tool → WhatsApp reply
+- **Files changed:**
+  - `apps/agent-processor/package.json` — new Lambda app; devDeps: `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`
+  - `apps/agent-processor/tsconfig.json` — extends base, references all workspace packages used
+  - `apps/agent-processor/src/index.ts` — Lambda handler: DynamoDB setup, `IdentityResolver`, `DynamoDBSessionManager`, `DefaultAgentClient` + `generate_ui` tool, `TenantBoundSender` for WhatsApp reply
+  - `apps/webhook-handler/package.json` — added `lint` script; `@aws-sdk/client-lambda` already there as devDep
+  - `apps/webhook-handler/src/index.ts` — replaced TODO with `LambdaClient.send(InvokeCommand)` async dispatch; filters to text messages only
+- **Learnings:**
+  - **AWS SDK devDeps pattern**: Lambda Node.js 20 runtime bundles all `@aws-sdk/*` v3 clients. Add as devDependencies for types-only during build; no bundling needed.
+  - **Two ToolContext shapes**: `@kuramei/tools` uses `{ sessionId, userId, correlationId, facts }`; `@kuramei/agent` uses `{ session, tenantId, correlationId, from? }`. Requires an adapter function (`adaptTool`) to bridge them.
+  - **inputSchema type divergence**: `@kuramei/tools` JSONSchema allows `"null"` type; `@kuramei/agent` doesn't. Cast `def.inputSchema as Tool['inputSchema']` — safe since `generate_ui` never uses `"null"`.
+  - **exactOptionalPropertyTypes + optional properties on object literals**: Can't assign `requiresApproval: undefined` in an object literal when the property is `requiresApproval?: boolean`. Use post-construction conditional assignment: `if (def.requiresApproval !== undefined) tool.requiresApproval = def.requiresApproval`.
+  - **ChannelBindingCommandFactories vs DynamoDBCommandFactories**: `ChannelBindingCommandFactories` extends `DynamoDBCommandFactories` and makes `createQueryCommand` required. Use `ChannelBindingCommandFactories` as return type for the command factory builder (it's compatible with both stores).
+  - **DynamoDB command factory typing**: The presence/conversation packages define their own `GetCommandInput` etc. Use those types in factory parameters and cast inputs to SDK command constructors with `as any` (justified: structurally compatible at runtime).
+  - **EnvSecretsProvider**: Simple Phase-0 secrets provider that reads env vars by name. `TenantBoundSender` calls `secretsProvider.getSecret(tenant.whatsappTokenSecret)` — set `whatsappTokenSecret = 'WHATSAPP_ACCESS_TOKEN'` to read that env var.
+  - **pnpm build 11/11** passes; typecheck 11/11 passes; lint 5/5 passes
+---
+

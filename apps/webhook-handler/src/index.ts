@@ -2,11 +2,10 @@
  * Kuramei WhatsApp Webhook Handler - AWS Lambda entry point
  *
  * Receives WhatsApp webhooks from API Gateway, validates signature,
- * parses messages, and dispatches to the agent.
- *
- * TODO: Wire up full agent pipeline (presence, session, agent)
+ * parses messages, and dispatches to agent-processor via async Lambda invocation.
  */
 
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { WebhookHandler, type WebhookPayload } from '@kuramei/whatsapp';
 
 // ============================================================================
@@ -36,6 +35,30 @@ function getEnv(key: string): string {
   const value = process.env[key];
   if (!value) throw new Error(`Missing required environment variable: ${key}`);
   return value;
+}
+
+// ============================================================================
+// Agent processor invocation
+// ============================================================================
+
+interface AgentProcessorEvent {
+  from: string;
+  phoneNumberId: string;
+  messageText: string;
+  profileName?: string;
+  correlationId: string;
+}
+
+const lambdaClient = new LambdaClient({});
+
+async function invokeAgentProcessor(payload: AgentProcessorEvent): Promise<void> {
+  const functionName = getEnv('AGENT_PROCESSOR_FUNCTION_NAME');
+  const command = new InvokeCommand({
+    FunctionName: functionName,
+    InvocationType: 'Event', // async — fire and forget
+    Payload: Buffer.from(JSON.stringify(payload)),
+  });
+  await lambdaClient.send(command);
 }
 
 // ============================================================================
@@ -74,7 +97,7 @@ export const handler = async (event: APIGatewayEvent): Promise<APIGatewayRespons
     // Validate signature
     try {
       webhookHandler.validateRequest(rawBody, signature);
-    } catch (error) {
+    } catch {
       return { statusCode: 401, body: 'Invalid signature' };
     }
 
@@ -88,14 +111,34 @@ export const handler = async (event: APIGatewayEvent): Promise<APIGatewayRespons
 
     const result = webhookHandler.parsePayload(payload);
 
-    // TODO: Process messages through agent pipeline
+    // Dispatch each text message to the agent-processor Lambda (async, fire-and-forget)
+    const invocations: Promise<void>[] = [];
     for (const parsedMessage of result.messages) {
-      console.log('Received message', {
+      if (parsedMessage.message.type !== 'text') continue;
+
+      const messageText = (parsedMessage.message as { text?: { body?: string } }).text?.body ?? '';
+      if (!messageText) continue;
+
+      const correlationId = `${parsedMessage.from}-${Date.now()}`;
+      const agentEvent: AgentProcessorEvent = {
         from: parsedMessage.from,
         phoneNumberId: parsedMessage.phoneNumberId,
-        type: parsedMessage.message.type,
-      });
+        messageText,
+        correlationId,
+        ...(parsedMessage.profileName !== undefined
+          ? { profileName: parsedMessage.profileName }
+          : {}),
+      };
+
+      invocations.push(
+        invokeAgentProcessor(agentEvent).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('Failed to invoke agent-processor', { from: parsedMessage.from, error: msg });
+        })
+      );
     }
+
+    await Promise.all(invocations);
 
     // WhatsApp requires 200 OK response within 20 seconds
     return { statusCode: 200, body: 'OK' };
