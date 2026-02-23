@@ -62,11 +62,12 @@
         "pnpm lint passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Key rule: tool descriptions = router. systemPromptSection = behavioral contracts only.",
       "dependsOn": [
         "US-001"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-003",
@@ -181,6 +182,6 @@
       "@kuramei/kv-client replaces inline KV fetch in both Lambda packages",
       "ui-worker READS KV via Wrangler native binding — does NOT use @kuramei/kv-client"
     ],
-    "updatedAt": "2026-02-23T22:13:38.591Z"
+    "updatedAt": "2026-02-23T22:15:57.173Z"
   }
 }
