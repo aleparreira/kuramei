@@ -5,117 +5,28 @@ after each iteration and it's included in prompts for context.
 
 ## Codebase Patterns (Study These First)
 
-### Package Structure Pattern
-All packages follow this structure:
-- `package.json`: `"type": "module"`, `main`/`types` pointing to `./dist/index.js`, scripts: `build` (tsc --build), `typecheck` (tsc --noEmit), `lint` (eslint src)
-- `tsconfig.json`: extends `../../tsconfig.base.json`, sets `outDir: ./dist` and `rootDir: ./src`
-- ESM imports use `.js` extension even for `.ts` source files
+### UISpec Discriminated Union Pattern
+`UISpecSchema` usa `z.discriminatedUnion('type', [...])` — cada spec tem campo `type` como literal. Para adicionar novo tipo: (1) interface + Zod schema em `spec/schema.ts`, (2) renderer em `src/renderer/<type>.ts`, (3) export em `index.ts`, (4) case no switch em `apps/ui-worker/src/renderer.ts`.
 
-### tsconfig.base.json Key Flags
-`exactOptionalPropertyTypes: true`, `noUncheckedIndexedAccess: true`, `NodeNext` module resolution — these are strict and will cause unexpected TS errors if not accounted for.
-
-### pnpm-workspace.yaml
-Already covers `packages/*` and `apps/*` globs — no manual entry needed for new packages.
+### Renderer HTML Pattern
+Todos os renderers retornam HTML completo com:
+- CSS inline apenas (sem CDN/frameworks externos)
+- `max-width:480px` centrado — mobile-first
+- Banner de expiração: verde (`#f0fdf4`) se válido, vermelho (`#fee2e2`) se expirado
+- Footer "Enviado via Kuramei" em `#9ca3af`
+- `formatTimeRemaining(expiresAt)` — helper local em cada renderer
 
 ---
 
-## 2026-02-23 - US-001
-- **What was implemented:** Created `packages/ui-engine/` with `@kuramei/ui-engine` package
-- **Files changed:**
-  - `packages/ui-engine/package.json` — new package with zod dependency
-  - `packages/ui-engine/tsconfig.json` — extends base config
-  - `packages/ui-engine/src/spec/schema.ts` — TypeScript types (UISpecType, NavigationSpec, UISpec, UISpecToken) + Zod validators (NavigationSpecSchema, UISpecSchema, UISpecTokenSchema)
-  - `packages/ui-engine/src/index.ts` — re-exports all types and validators
-  - `pnpm-lock.yaml` — updated with zod@3.25.76
+## [2026-02-23] - US-001
+- Adicionados `MessageSpec` e `ListSpec` ao schema com Zod validators
+- `UISpecSchema` atualizado para `z.discriminatedUnion('type', [...])`
+- Criados `src/renderer/message.ts` e `src/renderer/list.ts`
+- `index.ts` exporta todos os novos tipos, schemas e renderers
+- `apps/ui-worker/src/renderer.ts` usa switch por `spec.type`
+- Files: `packages/ui-engine/src/spec/schema.ts`, `packages/ui-engine/src/index.ts`, `packages/ui-engine/src/renderer/message.ts`, `packages/ui-engine/src/renderer/list.ts`, `apps/ui-worker/src/renderer.ts`
 - **Learnings:**
-  - Zod was not in the lockfile — needed `pnpm add zod --filter @kuramei/ui-engine`
-  - `pnpm-workspace.yaml` already covers `packages/*` glob; no manual entry needed
-  - `tsc --build` (composite mode) required `tsconfig.json` to match other packages exactly
-  - `pnpm build` passed 9/9 packages (8 previous + ui-engine) on first attempt
----
-
-## 2026-02-23 - US-003
-- **What was implemented:** Created `apps/ui-worker/` — Cloudflare Worker with JWT validation, KV lookup, rendering, and CSP header
-- **Files changed:**
-  - `apps/ui-worker/package.json` — new app with `@cloudflare/workers-types` devDep
-  - `apps/ui-worker/tsconfig.json` — overrides base: `module: ESNext`, `moduleResolution: Bundler`, `types: ["@cloudflare/workers-types"]`, `noEmit: true` (no dist needed; wrangler bundles)
-  - `apps/ui-worker/wrangler.toml` — Cloudflare Worker config with KV namespace binding placeholder
-  - `apps/ui-worker/src/validate.ts` — `verifyJWT()` using Web Crypto API (HMAC-SHA256), `parseUISpecToken()` using Zod
-  - `apps/ui-worker/src/renderer.ts` — `render()` delegates to `@kuramei/ui-engine`; `renderInvalidToken()` and `renderExpired()` return inline-CSS error pages with WhatsApp deep link
-  - `apps/ui-worker/src/index.ts` — Worker fetch handler: routes `GET /ui/:token`, validates JWT, reads from KV, renders HTML, adds CSP header on all responses
-  - `pnpm-lock.yaml` — added `@cloudflare/workers-types@^4.0.0`
-- **Learnings:**
-  - **Cloudflare Worker tsconfig pattern:** override `module: ESNext`, `moduleResolution: Bundler`, `types: ["@cloudflare/workers-types"]`, `composite: false`, `noEmit: true` — no dist folder, wrangler bundles
-  - **Turborepo warning "no output files":** expected when `build` uses `tsc --noEmit`. Not a failure; suppress later via turbo.json `outputs: []` for this task if needed
-  - **exactOptionalPropertyTypes + Zod v3:** Zod's inferred type adds `| undefined` to optional fields, conflicting with `exactOptionalPropertyTypes`. Fix: `result.data as UISpecToken` after `safeParse` succeeds — safe since validation already ran
-  - **noUncheckedIndexedAccess + RegExp.match():** `pathMatch[1]` is `string | undefined`; need explicit check even after `pathMatch !== null`
-  - **Web Crypto JWT:** no external library needed for HS256 validation in Workers — `crypto.subtle.importKey` + `crypto.subtle.verify` handle HMAC-SHA256 natively
-  - **pnpm build 10/10** passes (9 previous + ui-worker)
----
-
-## 2026-02-23 - US-004
-- **What was implemented:** `generate_ui` ToolDefinition in `@kuramei/tools`
-- **Files changed:**
-  - `packages/tools/package.json` — added `@kuramei/ui-engine: workspace:*` dependency
-  - `packages/tools/tsconfig.json` — added project reference to `../ui-engine`
-  - `packages/tools/src/builtin/generate-ui.ts` — new tool: validates NavigationSpec (Zod), builds UISpecToken, signs JWT HS256 (node:crypto HMAC-SHA256), writes to Cloudflare KV REST API, returns shareable URL
-  - `packages/tools/src/index.ts` — exported `generateUiTool`
-  - `.env.example` — created with all required env vars: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_KV_NAMESPACE_ID, CLOUDFLARE_API_TOKEN, KURAMEI_JWT_SECRET, KURAMEI_BASE_URL
-  - `pnpm-lock.yaml` — updated with new workspace dependency link
-- **Learnings:**
-  - **JWT HS256 in Node.js without deps:** `createHmac('sha256', secret).update(signingInput).digest()` from `node:crypto` — no library needed; same approach as the Worker uses Web Crypto
-  - **Token key strategy:** `randomUUID()` from `node:crypto` for the KV key (tokenHash) — ensures uniqueness, stored in JWT `hash` field so Worker can do `KV.get(payload.hash)`
-  - **UISpecToken timestamps:** `createdAt/expiresAt` in **milliseconds** (used by renderer with `Date.now()`); JWT `exp` in **seconds** (`Math.floor(expiresAt / 1000)`) — units differ
-  - **exactOptionalPropertyTypes + Zod v3:** same cast pattern as US-003 — `parsed.data as UISpec` after successful safeParse
-  - **workspace:* dep without frozen-lockfile:** adding a workspace dep requires `pnpm install` (without `--frozen-lockfile`) to update pnpm-lock.yaml
-  - **pnpm build 10/10** passes; typecheck and lint clean
----
-
-## 2026-02-23 - US-002
-- **What was implemented:** Created `renderNavigation(spec, token)` function that returns a complete HTML page for navigation
-- **Files changed:**
-  - `packages/ui-engine/src/renderer/navigation.ts` — new renderer with `renderNavigation` function; inline CSS only; handles expired/valid states
-  - `packages/ui-engine/src/index.ts` — added `renderNavigation` export
-- **Learnings:**
-  - `exactOptionalPropertyTypes` + `noUncheckedIndexedAccess` don't create friction for pure string generation functions — no gotchas here
-  - Inline CSS approach works cleanly; no external dependencies needed
-  - `Date.now()` for expiration check; `encodeURIComponent` for URL-safe destination param
-  - Waze deep link: `waze://?q={dest}&navigate=yes` — Apple Maps: `maps://?q={dest}` — Google Maps: `https://www.google.com/maps/search/?q={dest}`
-  - `pnpm build` 9/9 passes (8 cached + ui-engine rebuilt)
----
-
-## 2026-02-23 - US-005
-- **What was implemented:** End-to-end pipeline — `webhook-handler` → async Lambda invocation → `agent-processor` → identity resolution → session → AgentClient with `generate_ui` tool → WhatsApp reply
-- **Files changed:**
-  - `apps/agent-processor/package.json` — new Lambda app; devDeps: `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`
-  - `apps/agent-processor/tsconfig.json` — extends base, references all workspace packages used
-  - `apps/agent-processor/src/index.ts` — Lambda handler: DynamoDB setup, `IdentityResolver`, `DynamoDBSessionManager`, `DefaultAgentClient` + `generate_ui` tool, `TenantBoundSender` for WhatsApp reply
-  - `apps/webhook-handler/package.json` — added `lint` script; `@aws-sdk/client-lambda` already there as devDep
-  - `apps/webhook-handler/src/index.ts` — replaced TODO with `LambdaClient.send(InvokeCommand)` async dispatch; filters to text messages only
-- **Learnings:**
-  - **AWS SDK devDeps pattern**: Lambda Node.js 20 runtime bundles all `@aws-sdk/*` v3 clients. Add as devDependencies for types-only during build; no bundling needed.
-  - **Two ToolContext shapes**: `@kuramei/tools` uses `{ sessionId, userId, correlationId, facts }`; `@kuramei/agent` uses `{ session, tenantId, correlationId, from? }`. Requires an adapter function (`adaptTool`) to bridge them.
-  - **inputSchema type divergence**: `@kuramei/tools` JSONSchema allows `"null"` type; `@kuramei/agent` doesn't. Cast `def.inputSchema as Tool['inputSchema']` — safe since `generate_ui` never uses `"null"`.
-  - **exactOptionalPropertyTypes + optional properties on object literals**: Can't assign `requiresApproval: undefined` in an object literal when the property is `requiresApproval?: boolean`. Use post-construction conditional assignment: `if (def.requiresApproval !== undefined) tool.requiresApproval = def.requiresApproval`.
-  - **ChannelBindingCommandFactories vs DynamoDBCommandFactories**: `ChannelBindingCommandFactories` extends `DynamoDBCommandFactories` and makes `createQueryCommand` required. Use `ChannelBindingCommandFactories` as return type for the command factory builder (it's compatible with both stores).
-  - **DynamoDB command factory typing**: The presence/conversation packages define their own `GetCommandInput` etc. Use those types in factory parameters and cast inputs to SDK command constructors with `as any` (justified: structurally compatible at runtime).
-  - **EnvSecretsProvider**: Simple Phase-0 secrets provider that reads env vars by name. `TenantBoundSender` calls `secretsProvider.getSecret(tenant.whatsappTokenSecret)` — set `whatsappTokenSecret = 'WHATSAPP_ACCESS_TOKEN'` to read that env var.
-  - **pnpm build 11/11** passes; typecheck 11/11 passes; lint 5/5 passes
----
-
-## 2026-02-23 - US-006
-- **What was implemented:** `scripts/smoke-test.ts` — local end-to-end test without Lambda. Generates JWT + UISpecToken directly, writes spec to local KV via wrangler CLI, opens rendered URL in browser. Supports three scenarios: `happy` (default), `expired`, `invalid-jwt`.
-- **Files changed:**
-  - `scripts/smoke-test.ts` — new script: loads `.env.local`, builds UISpecToken, signs JWT, runs wrangler via `spawnSync` (args array), opens URL with `open`/`xdg-open`
-  - `package.json` — added `smoke-test` script: `tsx scripts/smoke-test.ts`; added `tsx ^4.21.0` devDependency
-  - `pnpm-lock.yaml` — updated with `tsx`
-- **Learnings:**
-  - **tsx at workspace root**: `pnpm add -D tsx -w` installs at monorepo root. Script runs directly with `tsx scripts/foo.ts`.
-  - **`scripts/` dir has no tsconfig**: tsx transpiles without strict type checking — no need to wire into tsconfig or turbo pipeline.
-  - **Wrangler 4.x KV command**: `wrangler kv:key` is now `wrangler kv key` (space, not colon). Use `--binding KV --local`. Needs `wrangler.toml` in cwd — run from `apps/ui-worker/`.
-  - **`--path` flag for large values**: pass `--path <file>` instead of inline value to avoid shell quoting issues with JSON.
-  - **spawnSync with args array (no shell)**: use `spawnSync(cmd, [url])` rather than shell string interpolation — avoids injection and satisfies security hooks.
-  - **`import.meta.url` for ESM `__dirname`**: `path.dirname(fileURLToPath(import.meta.url))` — standard pattern for root-level ESM scripts.
-  - **pnpm build 11/11** passes; typecheck 18/18; lint 5/5
+  - `z.discriminatedUnion` é preferível a `z.union` quando há campo discriminador — melhor inferência de tipo e mensagens de erro
+  - `formatTimeRemaining` é helper local duplicado em cada renderer — aceitável para manter renderers independentes sem shared util
 ---
 

@@ -24,9 +24,10 @@
         "pnpm lint passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-004a",
@@ -45,7 +46,9 @@
       "priority": 2,
       "passes": false,
       "notes": "",
-      "dependsOn": ["US-001"]
+      "dependsOn": [
+        "US-001"
+      ]
     },
     {
       "id": "US-002",
@@ -66,7 +69,10 @@
       "priority": 3,
       "passes": false,
       "notes": "",
-      "dependsOn": ["US-001", "US-004a"]
+      "dependsOn": [
+        "US-001",
+        "US-004a"
+      ]
     },
     {
       "id": "US-003",
@@ -89,7 +95,10 @@
       "priority": 4,
       "passes": false,
       "notes": "",
-      "dependsOn": ["US-001", "US-004a"]
+      "dependsOn": [
+        "US-001",
+        "US-004a"
+      ]
     },
     {
       "id": "US-004b",
@@ -112,7 +121,10 @@
       "priority": 5,
       "passes": false,
       "notes": "",
-      "dependsOn": ["US-002", "US-003"]
+      "dependsOn": [
+        "US-002",
+        "US-003"
+      ]
     },
     {
       "id": "US-005",
@@ -132,7 +144,10 @@
       "priority": 6,
       "passes": false,
       "notes": "",
-      "dependsOn": ["US-001", "US-004b"]
+      "dependsOn": [
+        "US-001",
+        "US-004b"
+      ]
     }
   ],
   "metadata": {
@@ -145,6 +160,7 @@
       "No triggerHints in ExperiencePackage — LLM is the only router",
       "create_reminder calls generateUI() helper directly, NOT via ToolRegistry",
       "generateUI() helper extracted to @kuramei/sdk before US-002/US-003"
-    ]
+    ],
+    "updatedAt": "2026-02-23T19:46:57.109Z"
   }
 }
