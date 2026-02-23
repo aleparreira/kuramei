@@ -1,0 +1,136 @@
+{
+  "name": "Kuramei Sprint 2 — Generative UI Engine",
+  "branchName": "ralph/sprint2-ui-engine",
+  "description": "Close the loop: LLM generates a JSON spec, spec becomes an HTML page hosted on the edge, user receives a link on WhatsApp. Done criterion: send 'navegar para Campinas' → receive link that opens a map page in the browser.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Spec Schema — freeze NavigationSpec + Zod validator",
+      "description": "As agent-processor, I want to generate a valid JSON spec for navigation intent so that the Renderer knows exactly what to render.",
+      "acceptanceCriteria": [
+        "Create packages/ui-engine/ with package.json (@kuramei/ui-engine) and tsconfig.json",
+        "Create src/spec/schema.ts exporting: UISpecType, NavigationSpec (type, version, destination, departureTime?, avoidTolls?, preferredApp?), UISpec, UISpecToken (spec, userId, createdAt, expiresAt)",
+        "Create Zod validators for NavigationSpec and UISpecToken in the same file",
+        "Export all types and validators from packages/ui-engine/src/index.ts",
+        "Add @kuramei/ui-engine to pnpm-workspace.yaml (or infer from packages/* glob)",
+        "pnpm build passes — ui-engine compiles without TypeScript errors",
+        "Schema is frozen: no changes to NavigationSpec fields after this PR merges",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes",
+        "pnpm lint passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-002",
+      "title": "Renderer — NavigationSpec → HTML page with navigation buttons",
+      "description": "As a Cloudflare Worker, I want to transform a NavigationSpec into functional HTML so that the user sees a page with buttons to open the map.",
+      "acceptanceCriteria": [
+        "Create packages/ui-engine/src/renderer/navigation.ts with a renderNavigation(spec: NavigationSpec, token: UISpecToken) function that returns an HTML string",
+        "Rendered page contains: formatted destination heading, 'Abrir no Waze' button → waze://?q={destination}&navigate=yes, 'Abrir no Google Maps' button → https://www.google.com/maps/search/?q={destination}, 'Abrir no Apple Maps' button → maps://?q={destination}",
+        "Rendered page shows expiration time remaining (formatted) when link is still valid",
+        "Rendered page shows 'Link expirado' message when expiresAt has passed",
+        "HTML is valid — no obvious structural errors",
+        "Responsive for mobile: CSS inline only, no external frameworks or CDN links",
+        "TypeScript pure — no runtime heavy dependencies",
+        "Export renderNavigation from packages/ui-engine/src/index.ts",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes",
+        "pnpm lint passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["US-001"]
+    },
+    {
+      "id": "US-003",
+      "title": "Cloudflare Worker — routing, JWT validation, KV lookup, CSP",
+      "description": "As a user who receives the link, I want to open ${KURAMEI_BASE_URL}/ui/{token} and see the correct navigation page so that I can navigate to the destination.",
+      "acceptanceCriteria": [
+        "Create apps/ui-worker/ with: src/index.ts (entry, routing), src/renderer.ts (calls @kuramei/ui-engine renderer), src/validate.ts (JWT + Zod validation), wrangler.toml, package.json",
+        "Worker responds to GET /ui/:token",
+        "Worker extracts JWT from URL token, validates with KURAMEI_JWT_SECRET (Wrangler secret)",
+        "Invalid or expired JWT → elegant error page (not 500), with WhatsApp deep link: https://wa.me/{WHATSAPP_NUMBER}?text=Preciso+de+um+novo+link",
+        "Valid JWT → GET spec from KV using hash from JWT payload",
+        "Spec absent in KV (TTL expired) → 'Link expirado' page with WhatsApp deep link",
+        "Worker calls Renderer.render(spec) and returns HTML",
+        "CSP header present on all responses: Content-Security-Policy: default-src 'none'; frame-src https://www.openstreetmap.org; style-src 'unsafe-inline'",
+        "wrangler.toml has KV namespace binding configured",
+        "pnpm build passes (all packages including ui-worker)",
+        "pnpm typecheck passes",
+        "pnpm lint passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["US-001", "US-002"]
+    },
+    {
+      "id": "US-004",
+      "title": "Tool generate_ui — Lambda writes spec to Cloudflare KV via REST API",
+      "description": "As agent-processor, I want to execute the generate_ui tool to generate and store the spec so that the Worker can retrieve and render it when the user opens the link.",
+      "acceptanceCriteria": [
+        "Implement generate_ui tool in @kuramei/tools package",
+        "Tool accepts NavigationSpec as input (validated with Zod)",
+        "Tool creates UISpecToken: spec + userId (hash of phone number) + createdAt (now) + expiresAt (now + 3600s)",
+        "Tool signs JWT HS256 with KURAMEI_JWT_SECRET: payload = { hash: tokenHash, exp: expiresAt/1000 }",
+        "Tool calls Cloudflare KV REST API to write spec: PUT https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/{CLOUDFLARE_KV_NAMESPACE_ID}/values/{key}?expiration_ttl=3600 with Authorization: Bearer {CLOUDFLARE_API_TOKEN}",
+        "Tool returns URL: ${KURAMEI_BASE_URL}/ui/{token}",
+        "KV write failure → throws error that agent-client captures and responds to user",
+        "All 4 env vars documented in .env.example: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_KV_NAMESPACE_ID, CLOUDFLARE_API_TOKEN, KURAMEI_JWT_SECRET",
+        "KURAMEI_BASE_URL also added to .env.example",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes",
+        "pnpm lint passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Lambda (AWS) and Cloudflare KV are different clouds — MUST use Cloudflare KV REST API, not any binding. CLOUDFLARE_API_TOKEN goes in AWS Secrets Manager alongside KURAMEI_JWT_SECRET.",
+      "dependsOn": ["US-001"]
+    },
+    {
+      "id": "US-005",
+      "title": "Pipeline end-to-end — WhatsApp → agent-processor → generate_ui → URL",
+      "description": "As a Kuramei user, I want to send 'navegar para Campinas' on WhatsApp so that I receive a link that opens a navigation page.",
+      "acceptanceCriteria": [
+        "Create apps/agent-processor/ Lambda (or confirm it exists) that: receives invocation from webhook-handler, resolves identity via PresenceService, loads/creates session in DynamoDB, calls AgentClient with tools",
+        "generate_ui tool registered in agent-processor's AppConfig tools list",
+        "System prompt instructs LLM to use generate_ui for navigation intents",
+        "Intent 'navegar para [cidade]' consistently detected by LLM and triggers generate_ui tool call",
+        "LLM called via OpenRouterProvider (DeepSeek V3 primary)",
+        "Agent sends WhatsApp reply with the URL (plain text message)",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes",
+        "pnpm lint passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "If agent-processor app does not exist yet, create it following webhook-handler pattern. InvocationType: Event (async). No EventBridge.",
+      "dependsOn": ["US-002", "US-003", "US-004"]
+    },
+    {
+      "id": "US-006",
+      "title": "Smoke test — local end-to-end without Lambda",
+      "description": "As a developer, I want to test the Worker locally without needing a Lambda so that I can validate the UI Engine pipeline in isolation.",
+      "acceptanceCriteria": [
+        "Create scripts/smoke-test.ts that: generates JWT + UISpecToken directly (no Lambda simulation), uses 'wrangler kv:key put --local {hash} {json}' CLI to write spec to local KV, mounts URL http://localhost:8787/ui/{token}, opens URL in browser automatically (macOS: open, Linux: xdg-open)",
+        "Add 'smoke-test' script to root package.json: 'tsx scripts/smoke-test.ts'",
+        "Running 'pnpm smoke-test' with 'wrangler dev' running opens the navigation page in the browser",
+        "Page displays 'Rota para Campinas, SP' with 3 navigation buttons (Waze, Google Maps, Apple Maps)",
+        "Test with expired token (set expiresAt in the past) → shows elegant error page (not 500)",
+        "Test with invalid JWT (wrong secret) → shows elegant error page (not 500)",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes",
+        "pnpm lint passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "wrangler dev and Lambda run in separate processes — do not share memory. Smoke test must be independent of Lambda. Use KURAMEI_JWT_SECRET from .env.local.",
+      "dependsOn": ["US-002", "US-003"]
+    }
+  ]
+}
