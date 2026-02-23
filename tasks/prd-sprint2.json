@@ -1,7 +1,7 @@
 {
   "name": "Kuramei Sprint 2 — Generative UI Engine",
-  "branchName": "ralph/sprint2-ui-engine",
   "description": "Close the loop: LLM generates a JSON spec, spec becomes an HTML page hosted on the edge, user receives a link on WhatsApp. Done criterion: send 'navegar para Campinas' → receive link that opens a map page in the browser.",
+  "branchName": "ralph/sprint2-ui-engine",
   "userStories": [
     {
       "id": "US-001",
@@ -20,9 +20,10 @@
         "pnpm lint passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-002",
@@ -44,7 +45,9 @@
       "priority": 2,
       "passes": false,
       "notes": "",
-      "dependsOn": ["US-001"]
+      "dependsOn": [
+        "US-001"
+      ]
     },
     {
       "id": "US-003",
@@ -67,7 +70,10 @@
       "priority": 3,
       "passes": false,
       "notes": "",
-      "dependsOn": ["US-001", "US-002"]
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
     },
     {
       "id": "US-004",
@@ -90,7 +96,9 @@
       "priority": 4,
       "passes": false,
       "notes": "Lambda (AWS) and Cloudflare KV are different clouds — MUST use Cloudflare KV REST API, not any binding. CLOUDFLARE_API_TOKEN goes in AWS Secrets Manager alongside KURAMEI_JWT_SECRET.",
-      "dependsOn": ["US-001"]
+      "dependsOn": [
+        "US-001"
+      ]
     },
     {
       "id": "US-005",
@@ -110,7 +118,11 @@
       "priority": 5,
       "passes": false,
       "notes": "If agent-processor app does not exist yet, create it following webhook-handler pattern. InvocationType: Event (async). No EventBridge.",
-      "dependsOn": ["US-002", "US-003", "US-004"]
+      "dependsOn": [
+        "US-002",
+        "US-003",
+        "US-004"
+      ]
     },
     {
       "id": "US-006",
@@ -130,7 +142,13 @@
       "priority": 6,
       "passes": false,
       "notes": "wrangler dev and Lambda run in separate processes — do not share memory. Smoke test must be independent of Lambda. Use KURAMEI_JWT_SECRET from .env.local.",
-      "dependsOn": ["US-002", "US-003"]
+      "dependsOn": [
+        "US-002",
+        "US-003"
+      ]
     }
-  ]
+  ],
+  "metadata": {
+    "updatedAt": "2026-02-23T17:21:44.307Z"
+  }
 }

@@ -3,7 +3,7 @@
   "sessionId": "17ac0a0a-ee4c-48e8-a96e-9a3aac881dd2",
   "status": "running",
   "startedAt": "2026-02-23T17:20:06.264Z",
-  "updatedAt": "2026-02-23T17:20:06.271Z",
+  "updatedAt": "2026-02-23T17:21:44.308Z",
   "currentIteration": 0,
   "maxIterations": 10,
   "tasksCompleted": 0,
@@ -55,8 +55,6 @@
   "iterations": [],
   "skippedTaskIds": [],
   "cwd": "/Users/xande/dev/kuramei",
-  "activeTaskIds": [
-    "US-001"
-  ],
+  "activeTaskIds": [],
   "subagentPanelVisible": false
 }
