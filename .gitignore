@@ -50,3 +50,6 @@ cdk.out/
 
 # Codex sessions (large, ephemeral)
 .codex/sessions/
+
+# Wrangler local secrets
+.dev.vars
