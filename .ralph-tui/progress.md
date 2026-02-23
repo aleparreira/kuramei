@@ -84,3 +84,19 @@ New packages follow this pattern:
   - `tsc --build` with project references requires `"composite": true` in depended-on packages — already set in `tsconfig.base.json`
 ---
 
+## 2026-02-23 - US-006b
+- Created `packages/experiences/currency/` with `package.json`, `tsconfig.json`, `src/index.ts`
+- `convert_currency` tool: fetches `https://open.er-api.com/v6/latest/{from}`, extracts `rates[to]`
+- Calculates `result = amount * rate`, formats to 2 decimal places; rate formatted to 4 decimal places
+- On success: `MessageSpec` with `💱 {amount} {from} = {result} {to}` title + rate + update date
+- On missing currency (rate undefined): `MessageSpec` listing 9 main supported currencies
+- On fetch error: friendly PT-BR error `MessageSpec`
+- `currencyExperience.systemPromptSection`: instructs LLM to add time context if relevant
+- Updated `apps/agent-processor`: `package.json` dependency + `tsconfig.json` reference + `import { currencyExperience }` + added to `experiences` array
+- `pnpm build` → 17/17 packages, `pnpm typecheck` → 30/30 clean
+- **Learnings:**
+  - `open.er-api.com` free tier requires no API key — response has `rates` object keyed by ISO code; missing key = invalid currency
+  - Zod `.transform((v) => v.toUpperCase())` on string fields normalizes input before validation — clean pattern for ISO codes
+  - `packages/experiences/*` glob already in `pnpm-workspace.yaml` — no update needed (same as weather)
+---
+
