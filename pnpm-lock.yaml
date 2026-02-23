@@ -35,9 +35,18 @@ importers:
       '@kuramei/conversation':
         specifier: workspace:*
         version: link:../../packages/conversation
+      '@kuramei/experience-navigation':
+        specifier: workspace:*
+        version: link:../../packages/experiences/navigation
+      '@kuramei/experience-reminder':
+        specifier: workspace:*
+        version: link:../../packages/experiences/reminder
       '@kuramei/presence':
         specifier: workspace:*
         version: link:../../packages/presence
+      '@kuramei/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@kuramei/tools':
         specifier: workspace:*
         version: link:../../packages/tools

@@ -21,3 +21,5 @@ export {
 } from './generate-ui-helper.js';
 
 export type { ExperiencePackage } from './experience-package.js';
+
+export { buildSystemPrompt } from './system-prompt.js';

@@ -11,7 +11,10 @@
   "references": [
     { "path": "../../packages/agent" },
     { "path": "../../packages/conversation" },
+    { "path": "../../packages/experiences/navigation" },
+    { "path": "../../packages/experiences/reminder" },
     { "path": "../../packages/presence" },
+    { "path": "../../packages/sdk" },
     { "path": "../../packages/tools" },
     { "path": "../../packages/whatsapp" }
   ]
