@@ -21,9 +21,10 @@
         "pnpm typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "NOTE: ui-worker READS from KV via Wrangler native binding (env.KV.get) — this does NOT use @kuramei/kv-client. Only Lambda-side code (generate-ui-helper, generate-ui tool) uses the REST client.",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-002",
@@ -42,7 +43,9 @@
       "priority": 2,
       "passes": false,
       "notes": "This US delivers IaC + documentation only. Alexandre runs the actual deployment. Mark passes:true when runbook + CDK code compile and docs are complete.",
-      "dependsOn": ["US-001"]
+      "dependsOn": [
+        "US-001"
+      ]
     },
     {
       "id": "US-004",
@@ -60,7 +63,9 @@
       "priority": 3,
       "passes": false,
       "notes": "Key rule: tool descriptions = router. systemPromptSection = behavioral contracts only.",
-      "dependsOn": ["US-001"]
+      "dependsOn": [
+        "US-001"
+      ]
     },
     {
       "id": "US-003",
@@ -82,7 +87,9 @@
       "priority": 4,
       "passes": false,
       "notes": "formatWhenPtBr: simple ISO-to-PT-BR format (e.g. '2026-02-24T20:00:00-03:00' → 'Amanhã às 20:00'). No external date lib — use Intl.DateTimeFormat.",
-      "dependsOn": ["US-004"]
+      "dependsOn": [
+        "US-004"
+      ]
     },
     {
       "id": "US-006a",
@@ -105,7 +112,9 @@
       "priority": 5,
       "passes": false,
       "notes": "wttr.in returns JSON with nested structure. Handle gracefully if API is slow or returns unexpected shape.",
-      "dependsOn": ["US-004"]
+      "dependsOn": [
+        "US-004"
+      ]
     },
     {
       "id": "US-006b",
@@ -129,7 +138,9 @@
       "priority": 6,
       "passes": false,
       "notes": "Currencies are 3-letter ISO codes (USD, BRL, EUR etc). Validate input and give helpful error if user passes something unexpected.",
-      "dependsOn": ["US-004"]
+      "dependsOn": [
+        "US-004"
+      ]
     },
     {
       "id": "US-005",
@@ -151,7 +162,10 @@
       "priority": 7,
       "passes": false,
       "notes": "BLOCKER: phone number must be stored in reminder DynamoDB item (not just hashed userId). Coordinate with create_reminder handler in US-003 to store rawPhone or phoneNumber directly. If context.userId is the WhatsApp phone number, store it directly.",
-      "dependsOn": ["US-002", "US-003"]
+      "dependsOn": [
+        "US-002",
+        "US-003"
+      ]
     }
   ],
   "metadata": {
@@ -165,6 +179,7 @@
       "Tool descriptions = LLM router. systemPromptSection = behavioral contracts only (US-004)",
       "@kuramei/kv-client replaces inline KV fetch in both Lambda packages",
       "ui-worker READS KV via Wrangler native binding — does NOT use @kuramei/kv-client"
-    ]
+    ],
+    "updatedAt": "2026-02-23T22:07:40.848Z"
   }
 }

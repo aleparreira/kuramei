@@ -5,98 +5,25 @@ after each iteration and it's included in prompts for context.
 
 ## Codebase Patterns (Study These First)
 
-### UISpec Discriminated Union Pattern
-`UISpecSchema` usa `z.discriminatedUnion('type', [...])` — cada spec tem campo `type` como literal. Para adicionar novo tipo: (1) interface + Zod schema em `spec/schema.ts`, (2) renderer em `src/renderer/<type>.ts`, (3) export em `index.ts`, (4) case no switch em `apps/ui-worker/src/renderer.ts`.
+### Package structure (shared library)
+New packages follow this pattern:
+- `package.json`: `"type": "module"`, `"main": "./dist/index.js"`, `"types": "./dist/index.d.ts"`, scripts: `build/clean/typecheck/lint`
+- `tsconfig.json`: extends `../../tsconfig.base.json`, `"composite": true` inherited from base, list `references` to workspace deps
+- Add to dependents: both `package.json` dependencies AND `tsconfig.json` references must be updated
 
-### Renderer HTML Pattern
-Todos os renderers retornam HTML completo com:
-- CSS inline apenas (sem CDN/frameworks externos)
-- `max-width:480px` centrado — mobile-first
-- Banner de expiração: verde (`#f0fdf4`) se válido, vermelho (`#fee2e2`) se expirado
-- Footer "Enviado via Kuramei" em `#9ca3af`
-- `formatTimeRemaining(expiresAt)` — helper local em cada renderer
+### pnpm-workspace.yaml glob
+`packages/*` covers all direct children of `packages/`. Nested packages (e.g. `packages/experiences/*`) need a separate entry.
 
 ---
 
-## [2026-02-23] - US-001
-- Adicionados `MessageSpec` e `ListSpec` ao schema com Zod validators
-- `UISpecSchema` atualizado para `z.discriminatedUnion('type', [...])`
-- Criados `src/renderer/message.ts` e `src/renderer/list.ts`
-- `index.ts` exporta todos os novos tipos, schemas e renderers
-- `apps/ui-worker/src/renderer.ts` usa switch por `spec.type`
-- Files: `packages/ui-engine/src/spec/schema.ts`, `packages/ui-engine/src/index.ts`, `packages/ui-engine/src/renderer/message.ts`, `packages/ui-engine/src/renderer/list.ts`, `apps/ui-worker/src/renderer.ts`
+## 2026-02-23 - US-001
+- Created `packages/kv-client/` with `put`, `get`, `del` functions wrapping Cloudflare KV REST API
+- Removed inline `fetch` KV logic from `packages/tools/src/builtin/generate-ui.ts` and `packages/sdk/src/generate-ui-helper.ts`
+- Updated `package.json` + `tsconfig.json` for both `@kuramei/tools` and `@kuramei/sdk` to add `@kuramei/kv-client` dependency
+- `apps/ui-worker` unchanged — reads KV via native Wrangler binding (`env.KV.get`), not REST
 - **Learnings:**
-  - `z.discriminatedUnion` é preferível a `z.union` quando há campo discriminador — melhor inferência de tipo e mensagens de erro
-  - `formatTimeRemaining` é helper local duplicado em cada renderer — aceitável para manter renderers independentes sem shared util
-
----
-
-## [2026-02-23] - US-002
-- Adicionado `ExperiencePackage` interface a `@kuramei/sdk` (`packages/sdk/src/experience-package.ts`)
-- Adicionado `packages/experiences/*` ao `pnpm-workspace.yaml`
-- Criado `packages/experiences/navigation/` com `package.json`, `tsconfig.json` e `src/index.ts`
-- `navigationExperience` exporta: `name`, `description`, `systemPromptSection` (PT-BR) e `tools: [generateUiTool]`
-- Files: `packages/sdk/src/experience-package.ts`, `packages/sdk/src/index.ts`, `pnpm-workspace.yaml`, `packages/experiences/navigation/package.json`, `packages/experiences/navigation/tsconfig.json`, `packages/experiences/navigation/src/index.ts`
-- **Learnings:**
-  - `packages/experiences/*` é um glob de segundo nível — o pnpm-workspace.yaml original com `packages/*` NÃO cobre sub-diretórios automaticamente; precisa de entrada explícita
-  - `ExperiencePackage` foi adicionado em US-002 (não US-004b como indicado no PRD) porque é prerequisito de build — US-004b pode complementar com `buildSystemPrompt`
-  - tsconfig de sub-diretório usa `../../../tsconfig.base.json` (3 níveis acima para `packages/experiences/navigation/`)
-
----
-
-## [2026-02-23] - US-003
-- Criado `packages/experiences/reminder/src/index.ts` com `reminderExperience: ExperiencePackage`
-- `create_reminder` tool: Zod validation, ulid ID, DynamoDB PutCommand (REMINDERS_TABLE), `generateUI()` do `@kuramei/sdk`, retorna `{ success: true, data: { url } }`
-- `systemPromptSection` em PT-BR: instrui LLM a pedir "quando" antes de chamar a tool, confirmar com link, não usar para consultar
-- Adicionado `REMINDERS_TABLE` ao `.env.example`
-- Files: `packages/experiences/reminder/src/index.ts`, `.env.example`
-- **Learnings:**
-  - `defineTool<TInput>` com genérico explícito resulta em `ToolDefinition<TInput>[]` não assignable a `ToolDefinition<unknown>[]` (ExperiencePackage.tools) — usar `defineTool({...})` sem genérico; Zod faz o parse internamente no handler
-  - Mesmo padrão do `navigationExperience` confirmado: handler recebe `unknown`, Zod valida, TypeScript satisfeito
-
-### buildSystemPrompt Pattern
-`buildSystemPrompt(base, packages)` em `@kuramei/sdk` — concatena base + seções de cada package no formato `== <name> ==\n<section>`, separadas por `\n\n`. Consumidores (agent-processor) chamam `experiences.flatMap(e => e.tools.map(adaptTool))` para coletar todas as tools.
-
----
-
-## [2026-02-23] - US-004a
-- Criado `packages/sdk/src/generate-ui-helper.ts` com função `generateUI(spec, { userId })` — lógica extraída do handler original (JWT HS256, Cloudflare KV REST, URL)
-- Adicionado `@kuramei/ui-engine: workspace:*` em `packages/sdk/package.json` e `{ "path": "../ui-engine" }` nas tsconfig references do sdk
-- Exportado `generateUI`, `GenerateUIContext`, `GenerateUIResult` de `packages/sdk/src/index.ts`
-- `packages/tools/src/builtin/generate-ui.ts` MANTEVE implementação interna (não virou thin wrapper) — comentário adicionado explicando o motivo
-- Files: `packages/sdk/src/generate-ui-helper.ts`, `packages/sdk/src/index.ts`, `packages/sdk/package.json`, `packages/sdk/tsconfig.json`, `packages/tools/src/builtin/generate-ui.ts`
-- **Learnings:**
-  - Dependência circular `@kuramei/sdk` → `@kuramei/tools` → `@kuramei/sdk` impede fazer o generate-ui tool um thin wrapper: Turborepo detecta ciclos no grafo de build e falha. A AC "becomes a thin wrapper" não foi satisfeita; o helper em sdk existe para uso por consumidores externos ao ToolRegistry (ex: futuro `create_reminder`)
-  - Para evitar ciclos em monorepos Turborepo, nunca crie dependências que fechem um loop nas referências TypeScript project + npm
-  - `pnpm install` (sem `--frozen-lockfile`) necessário ao adicionar dependência nova em workspace
-
----
-
-## [2026-02-23] - US-005
-- Reescrito `scripts/smoke-test.ts` com 3 novos cenários: `message`, `list`, `reminder`, `all`
-- `all` roda `map + message + list` (cenários sem DynamoDB) sequencialmente, abrindo 3 abas no browser
-- `reminder`: importa `reminderExperience` via dynamic import, chama `tools[0].handler` diretamente, verifica `{ success: true, url: string }`, skip gracioso se `REMINDERS_TABLE` não configurado
-- Backward compat mantida: `happy` e sem argumento continuam funcionando como `map`
-- Files: `scripts/smoke-test.ts`
-- **Learnings:**
-  - tsx v4 suporta top-level `await` em arquivos ESM (`"type": "module"` no root package.json)
-  - Dynamic import com caminho relativo `../packages/.../src/index.js` funciona com tsx — ele resolve `.js` → `.ts` para arquivos locais
-  - Não há `tsconfig.json` na raiz — scripts/ não é verificado pelo `pnpm typecheck`; tsx faz transpile sem checagem estrita
-  - Para cenários de erro (expired, invalid-jwt), reusar a mesma `runKvScenario` com opções em vez de duplicar lógica
-
----
-
-## [2026-02-23] - US-004b
-- Criado `packages/sdk/src/system-prompt.ts` com `buildSystemPrompt(base, packages): string`
-- Exportado `buildSystemPrompt` de `packages/sdk/src/index.ts`
-- `apps/agent-processor/package.json`: adicionadas deps `@kuramei/sdk`, `@kuramei/experience-navigation`, `@kuramei/experience-reminder`
-- `apps/agent-processor/tsconfig.json`: adicionadas references para sdk, experience-navigation, experience-reminder
-- `apps/agent-processor/src/index.ts`: carrega `navigationExperience` e `reminderExperience`, usa `buildSystemPrompt` para compor system prompt (PT-BR), coleta tools via `experiences.flatMap(e => e.tools.map(adaptTool))`
-- Files: `packages/sdk/src/system-prompt.ts`, `packages/sdk/src/index.ts`, `apps/agent-processor/src/index.ts`, `apps/agent-processor/package.json`, `apps/agent-processor/tsconfig.json`
-- **Learnings:**
-  - `pnpm install --frozen-lockfile` falha ao adicionar deps; usar `pnpm install` sem flag para atualizar lockfile automaticamente
-  - `experiences.flatMap(e => e.tools.map(adaptTool))` é o padrão limpo para coletar tools de múltiplos experience packages
-  - buildSystemPrompt output: `[base]\n\n== <name> ==\n<section>` para cada package, separados por `\n\n`
-
+  - pnpm workspace glob `packages/*` already covers `packages/kv-client` — no change to `pnpm-workspace.yaml` needed
+  - Both `package.json` dependencies AND `tsconfig.json` project references must be updated when adding a workspace dep; missing either causes build or type-resolution failures
+  - `tsc --build` with project references requires `"composite": true` in depended-on packages — already set in `tsconfig.base.json`
 ---
 

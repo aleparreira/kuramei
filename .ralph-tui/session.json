@@ -1,109 +1,64 @@
 {
   "version": 1,
-  "sessionId": "d7579da8-d023-46d2-973d-b2fcd1684f76",
+  "sessionId": "192e3f38-24c4-43f7-b2b4-1027bdb219be",
   "status": "running",
-  "startedAt": "2026-02-23T19:44:32.209Z",
-  "updatedAt": "2026-02-23T20:08:22.530Z",
-  "currentIteration": 2,
+  "startedAt": "2026-02-23T22:04:58.860Z",
+  "updatedAt": "2026-02-23T22:07:40.852Z",
+  "currentIteration": 0,
   "maxIterations": 10,
-  "tasksCompleted": 5,
+  "tasksCompleted": 0,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
     "plugin": "json",
-    "prdPath": "./tasks/prd-sprint3.json",
-    "totalTasks": 6,
+    "prdPath": "./tasks/prd-sprint4.json",
+    "totalTasks": 7,
     "tasks": [
       {
         "id": "US-001",
-        "title": "UISpec types message e list em @kuramei/ui-engine",
-        "status": "completed",
-        "completedInSession": true
-      },
-      {
-        "id": "US-004a",
-        "title": "Extrair helper generateUI() para uso compartilhado",
-        "status": "completed",
-        "completedInSession": true
+        "title": "@kuramei/kv-client — eliminar duplicação de lógica KV",
+        "status": "open",
+        "completedInSession": false
       },
       {
         "id": "US-002",
-        "title": "Experience Package Navegação (@kuramei/experience-navigation)",
-        "status": "completed",
-        "completedInSession": true
+        "title": "Deploy produção — IaC + runbook (gerado por Ralph, executado por Alexandre)",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-004",
+        "title": "Correção arquitetural — tool descriptions ricas, systemPromptSections como contratos",
+        "status": "open",
+        "completedInSession": false
       },
       {
         "id": "US-003",
-        "title": "Experience Package Lembrete (@kuramei/experience-reminder)",
-        "status": "completed",
-        "completedInSession": true
+        "title": "list_reminders — visualizar lembretes pendentes",
+        "status": "open",
+        "completedInSession": false
       },
       {
-        "id": "US-004b",
-        "title": "agent-processor com system prompt composto + ExperiencePackage interface",
-        "status": "completed",
-        "completedInSession": true
+        "id": "US-006a",
+        "title": "Experience Package Clima (@kuramei/experience-weather)",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-006b",
+        "title": "Experience Package Cotação (@kuramei/experience-currency)",
+        "status": "open",
+        "completedInSession": false
       },
       {
         "id": "US-005",
-        "title": "Smoke test atualizado com MessageSpec, ListSpec e fluxo de lembrete",
+        "title": "Reminder Scheduler — lembretes que disparam no horário",
         "status": "open",
         "completedInSession": false
       }
     ]
   },
-  "iterations": [
-    {
-      "iteration": 1,
-      "status": "completed",
-      "taskId": "US-001",
-      "taskTitle": "UISpec types message e list em @kuramei/ui-engine",
-      "taskCompleted": true,
-      "durationMs": 144893,
-      "startedAt": "2026-02-23T19:44:32.215Z",
-      "endedAt": "2026-02-23T19:46:57.108Z"
-    },
-    {
-      "iteration": 2,
-      "status": "completed",
-      "taskId": "US-004a",
-      "taskTitle": "Extrair helper generateUI() para uso compartilhado",
-      "taskCompleted": true,
-      "durationMs": 383026,
-      "startedAt": "2026-02-23T19:47:00.622Z",
-      "endedAt": "2026-02-23T19:53:23.648Z"
-    },
-    {
-      "iteration": 3,
-      "status": "completed",
-      "taskId": "US-002",
-      "taskTitle": "Experience Package Navegação (@kuramei/experience-navigation)",
-      "taskCompleted": true,
-      "durationMs": 177582,
-      "startedAt": "2026-02-23T19:53:27.282Z",
-      "endedAt": "2026-02-23T19:56:24.864Z"
-    },
-    {
-      "iteration": 1,
-      "status": "completed",
-      "taskId": "US-003",
-      "taskTitle": "Experience Package Lembrete (@kuramei/experience-reminder)",
-      "taskCompleted": true,
-      "durationMs": 161958,
-      "startedAt": "2026-02-23T20:02:50.218Z",
-      "endedAt": "2026-02-23T20:05:32.176Z"
-    },
-    {
-      "iteration": 2,
-      "status": "completed",
-      "taskId": "US-004b",
-      "taskTitle": "agent-processor com system prompt composto + ExperiencePackage interface",
-      "taskCompleted": true,
-      "durationMs": 164251,
-      "startedAt": "2026-02-23T20:05:35.666Z",
-      "endedAt": "2026-02-23T20:08:19.917Z"
-    }
-  ],
+  "iterations": [],
   "skippedTaskIds": [],
   "cwd": "/Users/xande/dev/kuramei",
   "activeTaskIds": [],
