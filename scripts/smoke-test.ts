@@ -5,9 +5,14 @@
  * Requires `wrangler dev` running in apps/ui-worker before executing.
  *
  * Usage:
- *   pnpm smoke-test              # happy path — navigation to Campinas, SP
- *   pnpm smoke-test expired      # expired token → elegant error page
- *   pnpm smoke-test invalid-jwt  # wrong JWT secret → elegant error page
+ *   pnpm smoke-test                # map scenario (default, backward compat)
+ *   pnpm smoke-test map            # navigation to Campinas, SP
+ *   pnpm smoke-test message        # MessageSpec confirmation page
+ *   pnpm smoke-test list           # ListSpec reminders list
+ *   pnpm smoke-test reminder       # create_reminder handler (requires REMINDERS_TABLE)
+ *   pnpm smoke-test all            # all non-DynamoDB scenarios (map + message + list)
+ *   pnpm smoke-test expired        # expired token → elegant error page
+ *   pnpm smoke-test invalid-jwt    # wrong JWT secret → elegant error page
  */
 
 import { createHmac, randomUUID } from 'node:crypto';
@@ -61,11 +66,166 @@ function signJwt(payload: Record<string, unknown>, secret: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// UISpec types (inline to avoid dist dependency)
+// ---------------------------------------------------------------------------
+
+type NavigationSpec = {
+  type: 'navigation';
+  version: '1.0';
+  destination: string;
+};
+
+type MessageSpec = {
+  type: 'message';
+  title: string;
+  body: string;
+  actions?: Array<{ label: string; url: string }>;
+};
+
+type ListSpec = {
+  type: 'list';
+  title: string;
+  items: Array<{ label: string; description?: string }>;
+};
+
+type UISpec = NavigationSpec | MessageSpec | ListSpec;
+
+// ---------------------------------------------------------------------------
+// KV scenario runner — writes spec to local KV and opens browser
+// ---------------------------------------------------------------------------
+
+const workerDir = path.join(ROOT, 'apps', 'ui-worker');
+
+function runKvScenario(
+  label: string,
+  spec: UISpec,
+  jwtSecret: string,
+  options: { expired?: boolean } = {},
+): void {
+  const tokenHash = randomUUID();
+  const now = Date.now();
+  const expiresAt = options.expired ? now - 3_600_000 : now + 3_600_000;
+
+  const specToken = {
+    spec,
+    userId: 'smoke-test-user',
+    createdAt: now,
+    expiresAt,
+  };
+
+  const jwt = signJwt({ hash: tokenHash, exp: Math.floor(expiresAt / 1000) }, jwtSecret);
+  const url = `http://localhost:8787/ui/${jwt}`;
+
+  console.log(`\n--- Scenario: ${label} ---`);
+  console.log(`Token hash : ${tokenHash}`);
+  console.log(`URL        : ${url}`);
+
+  const tmpFile = path.join(ROOT, '.smoke-test-tmp.json');
+  writeFileSync(tmpFile, JSON.stringify(specToken), 'utf-8');
+
+  try {
+    console.log('Writing spec to local KV...');
+    const result = spawnSync(
+      'npx',
+      ['wrangler', 'kv', 'key', 'put', '--binding', 'KV', '--local', tokenHash, '--path', tmpFile],
+      { cwd: workerDir, stdio: 'inherit' },
+    );
+    if (result.status !== 0) {
+      throw new Error(`wrangler exited with status ${String(result.status)}`);
+    }
+  } finally {
+    unlinkSync(tmpFile);
+  }
+
+  console.log(`Opening browser: ${url}`);
+  const openCmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
+  spawnSync(openCmd, [url], { stdio: 'inherit' });
+}
+
+// ---------------------------------------------------------------------------
+// Reminder scenario — calls create_reminder handler directly (no LLM)
+// ---------------------------------------------------------------------------
+
+async function runReminderScenario(env: Record<string, string>): Promise<void> {
+  console.log('\n--- Scenario: reminder ---');
+
+  const remindersTable = env['REMINDERS_TABLE'];
+  if (!remindersTable) {
+    console.log('Skipping: REMINDERS_TABLE not configured in .env.local');
+    return;
+  }
+
+  // Set env vars for handler execution
+  for (const [key, value] of Object.entries(env)) {
+    process.env[key] = value;
+  }
+
+  const { reminderExperience } = await import(
+    '../packages/experiences/reminder/src/index.js'
+  );
+
+  const handler = reminderExperience.tools[0]?.handler;
+  if (!handler) throw new Error('create_reminder handler not found in reminderExperience');
+
+  const input = { text: 'Tomar remédio', when: '2026-02-24T20:00:00-03:00' };
+  const context = {
+    sessionId: 'smoke-test-session',
+    userId: 'smoke-test-user',
+    correlationId: randomUUID(),
+    facts: {},
+  };
+
+  console.log('Calling create_reminder handler...');
+  const result = await handler(input, context);
+
+  if (!result.success) {
+    throw new Error(`Handler returned failure: ${String(result.error)}`);
+  }
+
+  const url = (result.data as { url?: string })?.url;
+  if (typeof url !== 'string' || !url) {
+    throw new Error(`Handler did not return a URL. Got: ${JSON.stringify(result)}`);
+  }
+
+  console.log(`Result     : { success: true, url: "${url}" }`);
+  console.log(`Opening browser: ${url}`);
+  const openCmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
+  spawnSync(openCmd, [url], { stdio: 'inherit' });
+}
+
+// ---------------------------------------------------------------------------
+// Spec definitions for reuse
+// ---------------------------------------------------------------------------
+
+const navigationSpec: NavigationSpec = {
+  type: 'navigation',
+  version: '1.0',
+  destination: 'Campinas, SP',
+};
+
+const messageSpec: MessageSpec = {
+  type: 'message',
+  title: 'Confirmação',
+  body: 'Operação realizada com sucesso.',
+  actions: [{ label: 'Ver detalhes', url: 'https://example.com' }],
+};
+
+const listSpec: ListSpec = {
+  type: 'list',
+  title: 'Seus lembretes',
+  items: [
+    { label: 'Tomar remédio', description: 'Hoje às 20h' },
+    { label: 'Ligar para João' },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
-const scenario = process.argv[2] ?? 'happy';
-const validScenarios = ['happy', 'expired', 'invalid-jwt'];
+const scenario = process.argv[2] ?? 'map';
+const validScenarios = ['map', 'happy', 'message', 'list', 'reminder', 'all', 'expired', 'invalid-jwt'];
+
 if (!validScenarios.includes(scenario)) {
   console.error(`Unknown scenario "${scenario}". Valid: ${validScenarios.join(', ')}`);
   process.exit(1);
@@ -75,82 +235,28 @@ const env = loadEnvLocal();
 const jwtSecret = env['KURAMEI_JWT_SECRET'];
 if (!jwtSecret) throw new Error('KURAMEI_JWT_SECRET not set in .env.local');
 
-const tokenHash = randomUUID();
-const now = Date.now();
-
-let expiresAt: number;
-let usedSecret: string;
-
-if (scenario === 'expired') {
-  expiresAt = now - 3_600_000; // 1 hour in the past
-  usedSecret = jwtSecret;
-  console.log('Scenario: expired token (expiresAt in the past)');
+if (scenario === 'message') {
+  runKvScenario('message', messageSpec, jwtSecret);
+  console.log('\nDone. Expected: confirmation page with "Confirmação" title and "Ver detalhes" button');
+} else if (scenario === 'list') {
+  runKvScenario('list', listSpec, jwtSecret);
+  console.log('\nDone. Expected: list page with "Seus lembretes" and 2 items');
+} else if (scenario === 'reminder') {
+  await runReminderScenario(env);
+  console.log('\nDone. Expected: reminder confirmation page (if REMINDERS_TABLE was set)');
+} else if (scenario === 'all') {
+  runKvScenario('map', navigationSpec, jwtSecret);
+  runKvScenario('message', messageSpec, jwtSecret);
+  runKvScenario('list', listSpec, jwtSecret);
+  console.log('\nDone. Opened 3 browser tabs (map, message, list).');
+} else if (scenario === 'expired') {
+  runKvScenario('expired', navigationSpec, jwtSecret, { expired: true });
+  console.log('\nDone. Expected: elegant error page (token expired)');
 } else if (scenario === 'invalid-jwt') {
-  expiresAt = now + 3_600_000;
-  usedSecret = 'wrong-secret-intentionally-invalid';
-  console.log('Scenario: invalid JWT (wrong secret)');
+  runKvScenario('invalid-jwt', navigationSpec, 'wrong-secret-intentionally-invalid');
+  console.log('\nDone. Expected: elegant error page (invalid token)');
 } else {
-  expiresAt = now + 3_600_000;
-  usedSecret = jwtSecret;
-  console.log('Scenario: happy path');
-}
-
-const specToken = {
-  spec: {
-    type: 'navigation' as const,
-    version: '1.0' as const,
-    destination: 'Campinas, SP',
-  },
-  userId: 'smoke-test-user',
-  createdAt: now,
-  expiresAt,
-};
-
-const jwt = signJwt({ hash: tokenHash, exp: Math.floor(expiresAt / 1000) }, usedSecret);
-const url = `http://localhost:8787/ui/${jwt}`;
-
-console.log(`Token hash : ${tokenHash}`);
-console.log(`URL        : ${url}`);
-
-// ---------------------------------------------------------------------------
-// Write spec to local KV via wrangler CLI
-// ---------------------------------------------------------------------------
-
-const workerDir = path.join(ROOT, 'apps', 'ui-worker');
-const kvValue = JSON.stringify(specToken);
-
-// Write JSON to a temp file to avoid any quoting issues with the value
-const tmpFile = path.join(ROOT, '.smoke-test-tmp.json');
-writeFileSync(tmpFile, kvValue, 'utf-8');
-
-try {
-  console.log('\nWriting spec to local KV...');
-  const result = spawnSync(
-    'npx',
-    ['wrangler', 'kv', 'key', 'put', '--binding', 'KV', '--local', tokenHash, '--path', tmpFile],
-    { cwd: workerDir, stdio: 'inherit' },
-  );
-  if (result.status !== 0) {
-    throw new Error(`wrangler exited with status ${String(result.status)}`);
-  }
-} finally {
-  unlinkSync(tmpFile);
-}
-
-// ---------------------------------------------------------------------------
-// Open in browser
-// ---------------------------------------------------------------------------
-
-console.log(`\nOpening browser: ${url}`);
-const openCmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
-// Use spawnSync with args array (no shell) to avoid injection
-spawnSync(openCmd, [url], { stdio: 'inherit' });
-
-console.log('\nDone. Check the browser tab.');
-if (scenario === 'expired') {
-  console.log('Expected: elegant error page (token expired)');
-} else if (scenario === 'invalid-jwt') {
-  console.log('Expected: elegant error page (invalid token)');
-} else {
-  console.log('Expected: "Rota para Campinas, SP" with Waze, Google Maps, Apple Maps buttons');
+  // map / happy / default
+  runKvScenario('map', navigationSpec, jwtSecret);
+  console.log('\nDone. Expected: "Rota para Campinas, SP" with Waze, Google Maps, Apple Maps buttons');
 }
