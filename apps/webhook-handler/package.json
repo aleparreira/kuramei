@@ -1,0 +1,21 @@
+{
+  "name": "@kuramei/webhook-handler",
+  "version": "0.1.0",
+  "description": "WhatsApp webhook Lambda handler for Kuramei",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kuramei/whatsapp": "workspace:*",
+    "@kuramei/presence": "workspace:*",
+    "@kuramei/conversation": "workspace:*",
+    "@kuramei/agent": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

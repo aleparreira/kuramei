@@ -1,0 +1,26 @@
+{
+  "name": "@kuramei/agent",
+  "version": "0.1.0",
+  "description": "LLM integration and workflow execution for Kuramei",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kuramei/conversation": "workspace:*",
+    "ulid": "^2.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
