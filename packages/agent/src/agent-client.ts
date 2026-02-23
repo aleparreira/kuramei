@@ -269,13 +269,24 @@ export class DefaultAgentClient implements AgentClient {
     };
     delete executedSession.facts['pendingToolUse'];
 
+    // [Fix P2] Emit tool_completed then message_completed to return to idle,
+    // so the next user turn starts from a valid message_received transition
+    const afterToolSession = this.workflowEngine.transition(
+      executedSession,
+      WorkflowEvents.toolCompleted(pendingToolUse.name, executionResult.result.success)
+    );
+    const idleSession = this.workflowEngine.transition(
+      afterToolSession,
+      WorkflowEvents.messageCompleted(correlationId)
+    );
+
     return {
       type: 'tool_executed' as const,
       content: executionResult.result.success
         ? `Ação "${pending.action}" executada com sucesso.`
         : `Erro ao executar "${pending.action}": ${executionResult.result.error}`,
       toolResult: { toolName: executionResult.toolName, result: executionResult.result },
-      session: executedSession,
+      session: idleSession,
     };
   }
 }
