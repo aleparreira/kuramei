@@ -1,0 +1,150 @@
+{
+  "name": "Kuramei Sprint 3 — Experience Packages + System Prompt Composto",
+  "description": "Transformar a infra do Sprint 2 em produto usável. Critério de done: alguém que não sabe como o produto funciona envia mensagem natural no WhatsApp e recebe resposta útil.",
+  "branchName": "feat/sprint3-experience-packages",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "UISpec types message e list em @kuramei/ui-engine",
+      "description": "Como desenvolvedor, quero novos tipos de UISpec para que o agente possa entregar confirmações, resumos e listas via UI — não apenas mapas.",
+      "acceptanceCriteria": [
+        "Extend @kuramei/ui-engine (NOT a new package — Arcos decision: no split). Organize internally as src/spec/ and src/renderer/ to facilitate future split.",
+        "Add MessageSpec to src/spec/schema.ts: { type: 'message'; title: string; body: string; actions?: Array<{ label: string; url: string }> }",
+        "Add ListSpec to src/spec/schema.ts: { type: 'list'; title: string; items: Array<{ label: string; description?: string }> }",
+        "Update UISpec union type: MapSpec | MessageSpec | ListSpec",
+        "Add Zod schemas: MessageSpecSchema and ListSpecSchema",
+        "Export all new types and schemas from packages/ui-engine/src/index.ts",
+        "Add renderMessage(spec: MessageSpec, token: UISpecToken): string in src/renderer/message.ts — HTML with title, body, and action buttons (if any)",
+        "Add renderList(spec: ListSpec, token: UISpecToken): string in src/renderer/list.ts — HTML with title and item list",
+        "Both renderers: CSS inline only (no external frameworks or CDN), responsive for mobile, page shows expiration time when valid, 'Link expirado' when expired",
+        "CSP header for both types: default-src 'none'; style-src 'unsafe-inline'",
+        "Update apps/ui-worker/src/renderer.ts to dispatch to correct renderer based on spec.type",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes",
+        "pnpm lint passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-004a",
+      "title": "Extrair helper generateUI() para uso compartilhado",
+      "description": "Como desenvolvedor, quero uma função generateUI(spec) compartilhável para que tools como create_reminder possam gerar URLs diretamente sem passar pelo ToolRegistry.",
+      "acceptanceCriteria": [
+        "Extract the core logic from packages/tools/src/builtin/generate-ui.ts handler into a standalone async function generateUI(spec: UISpec, context: { userId: string }): Promise<{ url: string }>",
+        "Place the helper in packages/sdk/src/generate-ui-helper.ts and export from @kuramei/sdk",
+        "The helper must: sign JWT, call Cloudflare KV REST API (same logic as existing tool), return { url: string }",
+        "The existing generate_ui tool in @kuramei/tools becomes a thin wrapper that calls generateUI() helper",
+        "No breaking changes to the existing tool interface or agent-processor behavior",
+        "The helper reads env vars directly (KURAMEI_JWT_SECRET, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_KV_NAMESPACE_ID, CLOUDFLARE_API_TOKEN, KURAMEI_BASE_URL)",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["US-001"]
+    },
+    {
+      "id": "US-002",
+      "title": "Experience Package Navegação (@kuramei/experience-navigation)",
+      "description": "Como desenvolvedor, quero formalizar a capacidade de navegação como um Experience Package para que o agente aprenda via system prompt quando e como gerar mapas.",
+      "acceptanceCriteria": [
+        "Create packages/experiences/navigation/ with package.json (name: @kuramei/experience-navigation, version: 0.1.0) and tsconfig.json (extends root tsconfig.base.json)",
+        "Add packages/experiences/* to pnpm-workspace.yaml if not already covered by glob",
+        "Create src/index.ts exporting navigationExperience: ExperiencePackage (from @kuramei/sdk)",
+        "ExperiencePackage interface (from @kuramei/sdk, NO triggerHints — LLM is the only router): { name: string; description: string; systemPromptSection: string; tools: ToolDefinition[] }",
+        "navigationExperience.name = 'navigation'",
+        "navigationExperience.description = 'Generates navigation maps and location pages'",
+        "navigationExperience.systemPromptSection must (in PT-BR): instruct LLM to use generate_ui tool with { type: 'map', query: '<destination>' } when user expresses any intention to go somewhere or needs a map; specify zoom 13 as default; instruct LLM to respond with friendly contextual text alongside the link (e.g. 'Aqui está o mapa para Campinas: <link>. Boa viagem! 🗺️'); instruct LLM to always use query field with place name, never invent coordinates",
+        "navigationExperience.tools includes the generate_ui tool definition (import from @kuramei/tools)",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["US-001", "US-004a"]
+    },
+    {
+      "id": "US-003",
+      "title": "Experience Package Lembrete (@kuramei/experience-reminder)",
+      "description": "Como usuário do WhatsApp, quero criar lembretes via mensagem natural e receber uma confirmação visual.",
+      "acceptanceCriteria": [
+        "Create packages/experiences/reminder/ with package.json (name: @kuramei/experience-reminder, version: 0.1.0) and tsconfig.json",
+        "Create src/index.ts exporting reminderExperience: ExperiencePackage",
+        "reminderExperience.systemPromptSection must (in PT-BR): instruct LLM to use create_reminder when user asks to be reminded of something; instruct LLM to ask for when if not specified (never create reminder without 'when'); instruct LLM to confirm creation with link: 'Lembrete criado! Confira aqui: <link>'; clarify that create_reminder is only for reminders, not for querying existing reminders",
+        "Tool create_reminder with Zod input schema: { text: z.string().min(1), when: z.string().min(1) } — both required (LLM must ask before calling if when is missing)",
+        "create_reminder handler: validates input with Zod, generates ulid for id, creates DynamoDB item in table process.env.REMINDERS_TABLE with: PK='USER#<userId>', SK='REMINDER#<ulid>', text, when (as provided), createdAt (ISO string), status='pending'",
+        "create_reminder handler: calls generateUI() helper (from @kuramei/sdk) with MessageSpec: { type: 'message', title: 'Lembrete criado ✅', body: '<text> — <when>', actions: [] }",
+        "create_reminder handler returns: { success: true, url: string } to the agent",
+        "IMPORTANT: create_reminder calls generateUI() helper directly — NOT via ToolRegistry. Tool does NOT call another tool via registry (no circular dependency).",
+        "reminderExperience.tools includes create_reminder tool definition",
+        "Add REMINDERS_TABLE to env vars documentation (update .env.example)",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["US-001", "US-004a"]
+    },
+    {
+      "id": "US-004b",
+      "title": "agent-processor com system prompt composto + ExperiencePackage interface",
+      "description": "Como desenvolvedor, quero que o agent-processor carregue todos os Experience Packages e componha o system prompt dinamicamente a partir das capabilities declaradas.",
+      "acceptanceCriteria": [
+        "Add ExperiencePackage interface to @kuramei/sdk (packages/sdk/src/experience-package.ts): { name: string; description: string; systemPromptSection: string; tools: ToolDefinition[] } — NO triggerHints",
+        "Add buildSystemPrompt(base: string, packages: ExperiencePackage[]): string to @kuramei/sdk (packages/sdk/src/system-prompt.ts)",
+        "buildSystemPrompt output format: '[base]\\n\\n[== <package.name> ==\\n<package.systemPromptSection>\\n]' for each package",
+        "Export ExperiencePackage and buildSystemPrompt from packages/sdk/src/index.ts",
+        "apps/agent-processor loads navigationExperience and reminderExperience",
+        "apps/agent-processor uses buildSystemPrompt to compose final system prompt with base + both packages",
+        "System prompt base (in PT-BR): 'Você é o Kuramei, assistente pessoal via WhatsApp. Responde sempre em PT-BR.\\nQuando gerar uma UI, sempre acompanhe o link com texto contextual e amigável.\\nNunca invente informações — se não souber, diga que não sabe.'",
+        "apps/agent-processor registers tools from all packages in ToolRegistry (tools from navigationExperience + reminderExperience)",
+        "generate_ui tool must remain available (either via navigationExperience.tools or registered separately)",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes",
+        "pnpm lint passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["US-002", "US-003"]
+    },
+    {
+      "id": "US-005",
+      "title": "Smoke test atualizado com MessageSpec, ListSpec e fluxo de lembrete",
+      "description": "Como desenvolvedor, quero que o smoke test cubra os novos tipos de UISpec e o fluxo de lembrete.",
+      "acceptanceCriteria": [
+        "Update scripts/smoke-test.ts with 3 new scenarios (in addition to existing map scenario):",
+        "Scenario 'message': creates UISpecToken with MessageSpec { type: 'message', title: 'Confirmação', body: 'Operação realizada com sucesso.', actions: [{ label: 'Ver detalhes', url: 'https://example.com' }] }, writes to KV via wrangler kv:key put, opens URL in browser",
+        "Scenario 'list': creates UISpecToken with ListSpec { type: 'list', title: 'Seus lembretes', items: [{ label: 'Tomar remédio', description: 'Hoje às 20h' }, { label: 'Ligar para João' }] }, writes to KV, opens URL in browser",
+        "Scenario 'reminder': calls create_reminder handler directly (unit test, not via LLM) with { text: 'Tomar remédio', when: '2026-02-24T20:00:00-03:00' }, verifies it returns { success: true, url: string }, opens URL in browser — NOTE: this scenario requires DynamoDB connection (skip gracefully if REMINDERS_TABLE not set)",
+        "All non-DynamoDB scenarios work with just KURAMEI_JWT_SECRET in .env.local and wrangler dev running",
+        "Usage: npx tsx scripts/smoke-test.ts [map|message|list|reminder|all] — defaults to 'map' for backward compat",
+        "npx tsx scripts/smoke-test.ts all runs all non-DynamoDB scenarios without errors",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["US-001", "US-004b"]
+    }
+  ],
+  "metadata": {
+    "sprint": 3,
+    "createdAt": "2026-02-23",
+    "createdBy": "forja",
+    "briefingSource": "/Users/xande/.openclaw/workspace-arcos/memory/briefing-forja-sprint3-v2.md",
+    "keyDecisions": [
+      "No split of @kuramei/ui-engine — extend internally with src/spec/ and src/renderer/ structure",
+      "No triggerHints in ExperiencePackage — LLM is the only router",
+      "create_reminder calls generateUI() helper directly, NOT via ToolRegistry",
+      "generateUI() helper extracted to @kuramei/sdk before US-002/US-003"
+    ]
+  }
+}
