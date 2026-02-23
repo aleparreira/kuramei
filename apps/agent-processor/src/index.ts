@@ -37,6 +37,7 @@ import type { ToolDefinition, ToolContext as SDKToolContext } from '@kuramei/too
 import { buildSystemPrompt } from '@kuramei/sdk';
 import { navigationExperience } from '@kuramei/experience-navigation';
 import { reminderExperience } from '@kuramei/experience-reminder';
+import { currencyExperience } from '@kuramei/experience-currency';
 import { weatherExperience } from '@kuramei/experience-weather';
 import { TenantBoundSender } from '@kuramei/whatsapp';
 import type { Tenant, SecretsProvider } from '@kuramei/whatsapp';
@@ -112,7 +113,7 @@ const SYSTEM_PROMPT_BASE =
   'Quando gerar uma UI, sempre acompanhe o link com texto contextual e amigável.\n' +
   'Nunca invente informações — se não souber, diga que não sabe.';
 
-const experiences = [navigationExperience, reminderExperience, weatherExperience];
+const experiences = [navigationExperience, reminderExperience, weatherExperience, currencyExperience];
 
 const SYSTEM_PROMPT = buildSystemPrompt(SYSTEM_PROMPT_BASE, experiences);
 

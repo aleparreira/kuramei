@@ -13,6 +13,7 @@
     { "path": "../../packages/conversation" },
     { "path": "../../packages/experiences/navigation" },
     { "path": "../../packages/experiences/reminder" },
+    { "path": "../../packages/experiences/currency" },
     { "path": "../../packages/experiences/weather" },
     { "path": "../../packages/presence" },
     { "path": "../../packages/sdk" },
