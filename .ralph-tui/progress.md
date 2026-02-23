@@ -34,3 +34,16 @@ Already covers `packages/*` and `apps/*` globs — no manual entry needed for ne
   - `pnpm build` passed 9/9 packages (8 previous + ui-engine) on first attempt
 ---
 
+## 2026-02-23 - US-002
+- **What was implemented:** Created `renderNavigation(spec, token)` function that returns a complete HTML page for navigation
+- **Files changed:**
+  - `packages/ui-engine/src/renderer/navigation.ts` — new renderer with `renderNavigation` function; inline CSS only; handles expired/valid states
+  - `packages/ui-engine/src/index.ts` — added `renderNavigation` export
+- **Learnings:**
+  - `exactOptionalPropertyTypes` + `noUncheckedIndexedAccess` don't create friction for pure string generation functions — no gotchas here
+  - Inline CSS approach works cleanly; no external dependencies needed
+  - `Date.now()` for expiration check; `encodeURIComponent` for URL-safe destination param
+  - Waze deep link: `waze://?q={dest}&navigate=yes` — Apple Maps: `maps://?q={dest}` — Google Maps: `https://www.google.com/maps/search/?q={dest}`
+  - `pnpm build` 9/9 passes (8 cached + ui-engine rebuilt)
+---
+

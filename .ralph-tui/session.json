@@ -3,10 +3,10 @@
   "sessionId": "17ac0a0a-ee4c-48e8-a96e-9a3aac881dd2",
   "status": "running",
   "startedAt": "2026-02-23T17:20:06.264Z",
-  "updatedAt": "2026-02-23T17:21:44.308Z",
-  "currentIteration": 0,
+  "updatedAt": "2026-02-23T17:23:17.716Z",
+  "currentIteration": 1,
   "maxIterations": 10,
-  "tasksCompleted": 0,
+  "tasksCompleted": 1,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -17,8 +17,8 @@
       {
         "id": "US-001",
         "title": "Spec Schema — freeze NavigationSpec + Zod validator",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-002",
@@ -52,7 +52,18 @@
       }
     ]
   },
-  "iterations": [],
+  "iterations": [
+    {
+      "iteration": 1,
+      "status": "completed",
+      "taskId": "US-001",
+      "taskTitle": "Spec Schema — freeze NavigationSpec + Zod validator",
+      "taskCompleted": true,
+      "durationMs": 98036,
+      "startedAt": "2026-02-23T17:20:06.270Z",
+      "endedAt": "2026-02-23T17:21:44.306Z"
+    }
+  ],
   "skippedTaskIds": [],
   "cwd": "/Users/xande/dev/kuramei",
   "activeTaskIds": [],
