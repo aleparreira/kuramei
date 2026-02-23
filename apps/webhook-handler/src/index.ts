@@ -130,15 +130,16 @@ export const handler = async (event: APIGatewayEvent): Promise<APIGatewayRespons
           : {}),
       };
 
-      invocations.push(
-        invokeAgentProcessor(agentEvent).catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error('Failed to invoke agent-processor', { from: parsedMessage.from, error: msg });
-        })
-      );
+      invocations.push(invokeAgentProcessor(agentEvent));
     }
 
-    await Promise.all(invocations);
+    try {
+      await Promise.all(invocations);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('Failed to invoke agent-processor', { error: msg });
+      return { statusCode: 500, body: 'Failed to dispatch message' };
+    }
 
     // WhatsApp requires 200 OK response within 20 seconds
     return { statusCode: 200, body: 'OK' };

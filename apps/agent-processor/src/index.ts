@@ -139,9 +139,9 @@ function buildCommandFactories(): ChannelBindingCommandFactories {
 // ============================================================================
 
 export const handler = async (event: AgentProcessorEvent): Promise<void> => {
-  const { from, messageText, profileName, correlationId } = event;
+  const { from, phoneNumberId, messageText, profileName, correlationId } = event;
 
-  const tableName = getEnv('DYNAMODB_TABLE_NAME');
+  const tableName = getEnv('DYNAMODB_TABLE');
 
   // Build DynamoDB client — Lambda IAM role grants table access
   const ddbRaw = new DynamoDBClient({});
@@ -197,7 +197,7 @@ export const handler = async (event: AgentProcessorEvent): Promise<void> => {
       appType: 'whatsapp',
       systemPrompt: SYSTEM_PROMPT,
       config: {},
-      whatsappPhoneId: getEnv('WHATSAPP_PHONE_NUMBER_ID'),
+      whatsappPhoneId: phoneNumberId,
       // EnvSecretsProvider reads this env var name to get the token
       whatsappTokenSecret: 'WHATSAPP_ACCESS_TOKEN',
     };
