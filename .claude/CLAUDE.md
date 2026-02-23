@@ -27,26 +27,19 @@ Usuário manda mensagem em linguagem natural → sistema entende → age → ger
 
 `pnpm build` → 8/8 packages compilando sem erros TypeScript.
 
-### Sprint 2 — EM ANDAMENTO: Generative UI Engine
+### Sprint 2 — CONCLUÍDO (`cdbcf01`, PR #11)
 
-**Critério de done:** mandar "navegar para Campinas" → receber link que abre mapa no browser.
+`pnpm build` → 11/11 packages. `pnpm smoke-test` → página "Rota para Campinas, SP" abre no browser.
 
-**📋 PRD completo:** `docs/sprint-2-prd.md` — leia antes de codar qualquer coisa.
+Entregues:
+- **`@kuramei/ui-engine`** — NavigationSpec schema + Zod validators + Renderer HTML
+- **`apps/ui-worker`** — Cloudflare Worker: JWT validation, KV lookup, CSP header
+- **`@kuramei/tools`** — Tool `generate_ui`: JWT + Cloudflare KV REST API + URL
+- **`apps/agent-processor`** — Lambda: identidade, sessão DynamoDB, AgentClient + generate_ui
+- **`apps/webhook-handler`** — wired: invoca agent-processor (InvocationType: Event)
+- **`scripts/smoke-test.ts`** — teste local end-to-end (`pnpm smoke-test`)
 
-Componentes a construir:
-
-1. **`@kuramei/ui-engine`** — Spec Schema (congelado antes do Renderer) + Renderer
-2. **`apps/ui-worker`** — Cloudflare Worker: valida JWT, busca spec no KV, renderiza HTML, CSP header
-3. **Tool `generate_ui`** — Lambda escreve no KV via **Cloudflare REST API** (não binding direto)
-4. Pipeline WhatsApp → URL completo + smoke test local
-
-> ⚠️ **Correção crítica (Arcos):** Lambda (AWS) e Cloudflare KV são clouds diferentes.
-> O tool `generate_ui` deve chamar a **Cloudflare KV REST API** para escrever o spec:
-> ```
-> PUT https://api.cloudflare.com/client/v4/accounts/{account_id}/storage/kv/namespaces/{namespace_id}/values/{key}?expiration_ttl=3600
-> Authorization: Bearer {CLOUDFLARE_API_TOKEN}
-> ```
-> Variáveis necessárias no Lambda: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_KV_NAMESPACE_ID`, `CLOUDFLARE_API_TOKEN`
+### Sprint 3 — A DEFINIR
 
 ---
 
