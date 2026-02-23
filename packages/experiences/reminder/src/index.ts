@@ -53,6 +53,8 @@ const createReminderTool = defineTool({
           when,
           createdAt,
           status: 'pending',
+          // context.userId is the raw WhatsApp phone number (from field)
+          phoneNumber: context.userId,
         },
       }),
     );

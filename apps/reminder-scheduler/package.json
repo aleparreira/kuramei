@@ -1,0 +1,21 @@
+{
+  "name": "@kuramei/reminder-scheduler",
+  "version": "0.1.0",
+  "description": "Reminder scheduler Lambda — queries pending reminders and dispatches WhatsApp messages",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kuramei/whatsapp": "workspace:*"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "typescript": "^5.6.0"
+  }
+}

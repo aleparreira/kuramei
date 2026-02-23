@@ -28,6 +28,9 @@ export class SchedulerStack extends Stack {
       },
       environment: {
         REMINDERS_TABLE: props.remindersTable.tableName,
+        // Set post-deploy: Lambda console → Environment variables
+        // WHATSAPP_PHONE_NUMBER_ID: '<phone_number_id_from_meta>'
+        // WHATSAPP_ACCESS_TOKEN: '<token_from_meta>'  (sensitive — set manually)
         NODE_OPTIONS: '--enable-source-maps',
       },
     });
