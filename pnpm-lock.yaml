@@ -138,6 +138,31 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/experiences/reminder:
+    dependencies:
+      '@kuramei/sdk':
+        specifier: workspace:*
+        version: link:../../sdk
+      '@kuramei/tools':
+        specifier: workspace:*
+        version: link:../../tools
+      ulid:
+        specifier: ^2.3.0
+        version: 2.4.0
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.0.0
+        version: 3.995.0
+      '@aws-sdk/lib-dynamodb':
+        specifier: ^3.0.0
+        version: 3.995.0(@aws-sdk/client-dynamodb@3.995.0)
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/presence:
     devDependencies:
       typescript:

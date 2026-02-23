@@ -44,6 +44,18 @@ Todos os renderers retornam HTML completo com:
 
 ---
 
+## [2026-02-23] - US-003
+- Criado `packages/experiences/reminder/src/index.ts` com `reminderExperience: ExperiencePackage`
+- `create_reminder` tool: Zod validation, ulid ID, DynamoDB PutCommand (REMINDERS_TABLE), `generateUI()` do `@kuramei/sdk`, retorna `{ success: true, data: { url } }`
+- `systemPromptSection` em PT-BR: instrui LLM a pedir "quando" antes de chamar a tool, confirmar com link, não usar para consultar
+- Adicionado `REMINDERS_TABLE` ao `.env.example`
+- Files: `packages/experiences/reminder/src/index.ts`, `.env.example`
+- **Learnings:**
+  - `defineTool<TInput>` com genérico explícito resulta em `ToolDefinition<TInput>[]` não assignable a `ToolDefinition<unknown>[]` (ExperiencePackage.tools) — usar `defineTool({...})` sem genérico; Zod faz o parse internamente no handler
+  - Mesmo padrão do `navigationExperience` confirmado: handler recebe `unknown`, Zod valida, TypeScript satisfeito
+
+---
+
 ## [2026-02-23] - US-004a
 - Criado `packages/sdk/src/generate-ui-helper.ts` com função `generateUI(spec, { userId })` — lógica extraída do handler original (JWT HS256, Cloudflare KV REST, URL)
 - Adicionado `@kuramei/ui-engine: workspace:*` em `packages/sdk/package.json` e `{ "path": "../ui-engine" }` nas tsconfig references do sdk
