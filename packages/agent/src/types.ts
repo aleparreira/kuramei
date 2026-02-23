@@ -154,6 +154,7 @@ export interface WorkflowStep {
 
 export type WorkflowEventType =
   | 'message_received'
+  | 'message_completed'
   | 'tool_called'
   | 'tool_completed'
   | 'approval_requested'

@@ -14,6 +14,7 @@ interface StateTransition {
 
 const STATE_TRANSITIONS: StateTransition[] = [
   { from: 'idle', event: 'message_received', to: 'processing' },
+  { from: ['processing', 'executing'], event: 'message_completed', to: 'idle' },
   { from: 'processing', event: 'tool_called', to: 'executing' },
   { from: 'executing', event: 'tool_completed', to: 'processing' },
   { from: 'processing', event: 'approval_requested', to: 'awaiting_approval' },
@@ -108,6 +109,9 @@ export const WorkflowEvents = {
 
   approvalDenied: (approvalId: string, reason?: string): WorkflowEvent =>
     createWorkflowEvent('approval_denied', { approvalId, reason }),
+
+  messageCompleted: (correlationId: string): WorkflowEvent =>
+    createWorkflowEvent('message_completed', { correlationId }),
 
   error: (message: string, code?: string): WorkflowEvent =>
     createWorkflowEvent('error', { message, code }),
