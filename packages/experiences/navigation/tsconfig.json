@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
@@ -9,7 +9,7 @@
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"],
   "references": [
-    { "path": "../tools" },
-    { "path": "../ui-engine" }
+    { "path": "../../sdk" },
+    { "path": "../../tools" }
   ]
 }

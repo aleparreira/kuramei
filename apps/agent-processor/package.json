@@ -13,7 +13,10 @@
   "dependencies": {
     "@kuramei/agent": "workspace:*",
     "@kuramei/conversation": "workspace:*",
+    "@kuramei/experience-navigation": "workspace:*",
+    "@kuramei/experience-reminder": "workspace:*",
     "@kuramei/presence": "workspace:*",
+    "@kuramei/sdk": "workspace:*",
     "@kuramei/tools": "workspace:*",
     "@kuramei/whatsapp": "workspace:*"
   },

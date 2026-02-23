@@ -3,7 +3,8 @@
  *
  * Receives an invocation from webhook-handler (InvocationType: Event),
  * resolves the user's identity, loads/creates their session, runs the
- * AgentClient with the generate_ui tool, and sends the reply via WhatsApp.
+ * AgentClient with tools from all experience packages, and sends the reply
+ * via WhatsApp.
  */
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -32,8 +33,10 @@ import {
 } from '@kuramei/presence';
 import { DefaultAgentClient, OpenRouterProvider } from '@kuramei/agent';
 import type { Tool, ToolContext as AgentToolContext } from '@kuramei/agent';
-import { generateUiTool } from '@kuramei/tools';
 import type { ToolDefinition, ToolContext as SDKToolContext } from '@kuramei/tools';
+import { buildSystemPrompt } from '@kuramei/sdk';
+import { navigationExperience } from '@kuramei/experience-navigation';
+import { reminderExperience } from '@kuramei/experience-reminder';
 import { TenantBoundSender } from '@kuramei/whatsapp';
 import type { Tenant, SecretsProvider } from '@kuramei/whatsapp';
 
@@ -82,7 +85,7 @@ function adaptTool(def: ToolDefinition): Tool {
     name: def.name,
     description: def.description,
     // @kuramei/tools JSONSchema allows "null" type; @kuramei/agent does not.
-    // The schemas used by generate_ui never use "null", so this cast is safe.
+    // The schemas used by known tools never use "null", so this cast is safe.
     inputSchema: def.inputSchema as Tool['inputSchema'],
     execute: async (input: unknown, agentCtx: AgentToolContext) => {
       const sdkCtx: SDKToolContext = {
@@ -100,14 +103,17 @@ function adaptTool(def: ToolDefinition): Tool {
 }
 
 // ============================================================================
-// System prompt
+// Experience packages + system prompt
 // ============================================================================
 
-const SYSTEM_PROMPT = `Você é Kuramei, assistente pessoal via WhatsApp.
+const SYSTEM_PROMPT_BASE =
+  'Você é o Kuramei, assistente pessoal via WhatsApp. Responde sempre em PT-BR.\n' +
+  'Quando gerar uma UI, sempre acompanhe o link com texto contextual e amigável.\n' +
+  'Nunca invente informações — se não souber, diga que não sabe.';
 
-Quando o usuário pedir para navegar até algum lugar ou precisar de um mapa, use a ferramenta generate_ui com type="navigation" e version="1.0" para gerar uma página de navegação. Responda com o link gerado.
+const experiences = [navigationExperience, reminderExperience];
 
-Seja breve e direto. Responda sempre em português brasileiro.`;
+const SYSTEM_PROMPT = buildSystemPrompt(SYSTEM_PROMPT_BASE, experiences);
 
 // ============================================================================
 // DynamoDB command factories
@@ -176,7 +182,8 @@ export const handler = async (event: AgentProcessorEvent): Promise<void> => {
 
   const agentClient = new DefaultAgentClient({ provider });
 
-  const tools: Tool[] = [adaptTool(generateUiTool)];
+  // Collect tools from all experience packages
+  const tools: Tool[] = experiences.flatMap((exp) => exp.tools.map(adaptTool));
 
   const agentResponse = await agentClient.process({
     session,

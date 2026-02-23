@@ -1,52 +1,52 @@
 {
   "version": 1,
-  "sessionId": "17ac0a0a-ee4c-48e8-a96e-9a3aac881dd2",
+  "sessionId": "d7579da8-d023-46d2-973d-b2fcd1684f76",
   "status": "running",
-  "startedAt": "2026-02-23T17:20:06.264Z",
-  "updatedAt": "2026-02-23T17:50:14.890Z",
-  "currentIteration": 5,
+  "startedAt": "2026-02-23T19:44:32.209Z",
+  "updatedAt": "2026-02-23T20:08:22.530Z",
+  "currentIteration": 2,
   "maxIterations": 10,
   "tasksCompleted": 5,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
     "plugin": "json",
-    "prdPath": "./tasks/prd-sprint2.json",
+    "prdPath": "./tasks/prd-sprint3.json",
     "totalTasks": 6,
     "tasks": [
       {
         "id": "US-001",
-        "title": "Spec Schema — freeze NavigationSpec + Zod validator",
+        "title": "UISpec types message e list em @kuramei/ui-engine",
+        "status": "completed",
+        "completedInSession": true
+      },
+      {
+        "id": "US-004a",
+        "title": "Extrair helper generateUI() para uso compartilhado",
         "status": "completed",
         "completedInSession": true
       },
       {
         "id": "US-002",
-        "title": "Renderer — NavigationSpec → HTML page with navigation buttons",
+        "title": "Experience Package Navegação (@kuramei/experience-navigation)",
         "status": "completed",
         "completedInSession": true
       },
       {
         "id": "US-003",
-        "title": "Cloudflare Worker — routing, JWT validation, KV lookup, CSP",
+        "title": "Experience Package Lembrete (@kuramei/experience-reminder)",
         "status": "completed",
         "completedInSession": true
       },
       {
-        "id": "US-004",
-        "title": "Tool generate_ui — Lambda writes spec to Cloudflare KV via REST API",
+        "id": "US-004b",
+        "title": "agent-processor com system prompt composto + ExperiencePackage interface",
         "status": "completed",
         "completedInSession": true
       },
       {
         "id": "US-005",
-        "title": "Pipeline end-to-end — WhatsApp → agent-processor → generate_ui → URL",
-        "status": "completed",
-        "completedInSession": true
-      },
-      {
-        "id": "US-006",
-        "title": "Smoke test — local end-to-end without Lambda",
+        "title": "Smoke test atualizado com MessageSpec, ListSpec e fluxo de lembrete",
         "status": "open",
         "completedInSession": false
       }
@@ -57,51 +57,51 @@
       "iteration": 1,
       "status": "completed",
       "taskId": "US-001",
-      "taskTitle": "Spec Schema — freeze NavigationSpec + Zod validator",
+      "taskTitle": "UISpec types message e list em @kuramei/ui-engine",
       "taskCompleted": true,
-      "durationMs": 98036,
-      "startedAt": "2026-02-23T17:20:06.270Z",
-      "endedAt": "2026-02-23T17:21:44.306Z"
+      "durationMs": 144893,
+      "startedAt": "2026-02-23T19:44:32.215Z",
+      "endedAt": "2026-02-23T19:46:57.108Z"
     },
     {
       "iteration": 2,
       "status": "completed",
-      "taskId": "US-002",
-      "taskTitle": "Renderer — NavigationSpec → HTML page with navigation buttons",
+      "taskId": "US-004a",
+      "taskTitle": "Extrair helper generateUI() para uso compartilhado",
       "taskCompleted": true,
-      "durationMs": 89920,
-      "startedAt": "2026-02-23T17:21:47.793Z",
-      "endedAt": "2026-02-23T17:23:17.713Z"
+      "durationMs": 383026,
+      "startedAt": "2026-02-23T19:47:00.622Z",
+      "endedAt": "2026-02-23T19:53:23.648Z"
     },
     {
       "iteration": 3,
       "status": "completed",
+      "taskId": "US-002",
+      "taskTitle": "Experience Package Navegação (@kuramei/experience-navigation)",
+      "taskCompleted": true,
+      "durationMs": 177582,
+      "startedAt": "2026-02-23T19:53:27.282Z",
+      "endedAt": "2026-02-23T19:56:24.864Z"
+    },
+    {
+      "iteration": 1,
+      "status": "completed",
       "taskId": "US-003",
-      "taskTitle": "Cloudflare Worker — routing, JWT validation, KV lookup, CSP",
+      "taskTitle": "Experience Package Lembrete (@kuramei/experience-reminder)",
       "taskCompleted": true,
-      "durationMs": 402073,
-      "startedAt": "2026-02-23T17:23:21.132Z",
-      "endedAt": "2026-02-23T17:30:03.205Z"
+      "durationMs": 161958,
+      "startedAt": "2026-02-23T20:02:50.218Z",
+      "endedAt": "2026-02-23T20:05:32.176Z"
     },
     {
-      "iteration": 4,
+      "iteration": 2,
       "status": "completed",
-      "taskId": "US-004",
-      "taskTitle": "Tool generate_ui — Lambda writes spec to Cloudflare KV via REST API",
+      "taskId": "US-004b",
+      "taskTitle": "agent-processor com system prompt composto + ExperiencePackage interface",
       "taskCompleted": true,
-      "durationMs": 250959,
-      "startedAt": "2026-02-23T17:30:06.733Z",
-      "endedAt": "2026-02-23T17:34:17.692Z"
-    },
-    {
-      "iteration": 5,
-      "status": "completed",
-      "taskId": "US-005",
-      "taskTitle": "Pipeline end-to-end — WhatsApp → agent-processor → generate_ui → URL",
-      "taskCompleted": true,
-      "durationMs": 710931,
-      "startedAt": "2026-02-23T17:34:21.314Z",
-      "endedAt": "2026-02-23T17:46:12.245Z"
+      "durationMs": 164251,
+      "startedAt": "2026-02-23T20:05:35.666Z",
+      "endedAt": "2026-02-23T20:08:19.917Z"
     }
   ],
   "skippedTaskIds": [],

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Pre-push hook for Kuramei
+#
+# Allows direct push to main ONLY for documentation-only commits:
+#   - .claude/** (internal project docs)
+#   - CLAUDE.md, AGENTS.md, README.md
+#
+# All other pushes to main are blocked — use PR workflow.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo ""
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}  PRE-PUSH CHECKS${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+while read local_ref local_sha remote_ref remote_sha; do
+    BRANCH=$(echo "$remote_ref" | sed 's|refs/heads/||')
+
+    if [[ "$BRANCH" != "main" && "$BRANCH" != "master" ]]; then
+        continue
+    fi
+
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    if [[ "$CURRENT_BRANCH" != "$BRANCH" ]]; then
+        continue
+    fi
+
+    # Determine base: use remote sha if branch exists, otherwise compare to HEAD~
+    if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
+        BASE="HEAD~1"
+    else
+        BASE="$remote_sha"
+    fi
+
+    # Check if all changed files are docs-only
+    CHANGED_FILES=$(git diff --name-only "$BASE" "$local_sha" 2>/dev/null || true)
+
+    if [[ -z "$CHANGED_FILES" ]]; then
+        continue
+    fi
+
+    DOCS_PATTERN="^(\.claude/|CLAUDE\.md|AGENTS\.md|README\.md|docs/)"
+    NON_DOCS=$(echo "$CHANGED_FILES" | grep -vE "$DOCS_PATTERN" || true)
+
+    if [[ -n "$NON_DOCS" ]]; then
+        echo -e "${RED}✗ BLOCKED:${NC} Direct push to '$BRANCH' is not allowed for code changes!"
+        echo ""
+        echo "  Non-documentation files detected:"
+        echo "$NON_DOCS" | sed 's/^/    /'
+        echo ""
+        echo "  Required workflow:"
+        echo "    1. git checkout -b feat/my-feature"
+        echo "    2. git push -u origin feat/my-feature"
+        echo "    3. gh pr create → Codex review → merge"
+        echo ""
+        echo "  To bypass (emergency only): git push --no-verify"
+        echo ""
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Docs-only push to '$BRANCH' — allowed${NC}"
+done
+
+echo -e "${GREEN}✓ Pre-push checks passed${NC}"
+echo ""
+exit 0

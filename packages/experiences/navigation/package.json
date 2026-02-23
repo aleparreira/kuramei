@@ -1,7 +1,8 @@
 {
-  "name": "@kuramei/sdk",
+  "name": "@kuramei/experience-navigation",
   "version": "0.1.0",
-  "description": "App configuration SDK for Kuramei",
+  "private": true,
+  "description": "Navigation Experience Package for Kuramei",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,8 +18,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@kuramei/tools": "workspace:*",
-    "@kuramei/ui-engine": "workspace:*"
+    "@kuramei/sdk": "workspace:*",
+    "@kuramei/tools": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0"
