@@ -1,0 +1,21 @@
+{
+  "name": "@kuramei/infra-cdk",
+  "version": "0.1.0",
+  "description": "AWS CDK infrastructure for Kuramei",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint bin lib",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.180.0",
+    "constructs": "^10.4.0"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.180.0",
+    "typescript": "^5.6.0"
+  }
+}

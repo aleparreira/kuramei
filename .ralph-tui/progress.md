@@ -5,98 +5,113 @@ after each iteration and it's included in prompts for context.
 
 ## Codebase Patterns (Study These First)
 
-### UISpec Discriminated Union Pattern
-`UISpecSchema` usa `z.discriminatedUnion('type', [...])` — cada spec tem campo `type` como literal. Para adicionar novo tipo: (1) interface + Zod schema em `spec/schema.ts`, (2) renderer em `src/renderer/<type>.ts`, (3) export em `index.ts`, (4) case no switch em `apps/ui-worker/src/renderer.ts`.
+### Package structure (shared library)
+New packages follow this pattern:
+- `package.json`: `"type": "module"`, `"main": "./dist/index.js"`, `"types": "./dist/index.d.ts"`, scripts: `build/clean/typecheck/lint`
+- `tsconfig.json`: extends `../../tsconfig.base.json`, `"composite": true` inherited from base, list `references` to workspace deps
+- Add to dependents: both `package.json` dependencies AND `tsconfig.json` references must be updated
 
-### Renderer HTML Pattern
-Todos os renderers retornam HTML completo com:
-- CSS inline apenas (sem CDN/frameworks externos)
-- `max-width:480px` centrado — mobile-first
-- Banner de expiração: verde (`#f0fdf4`) se válido, vermelho (`#fee2e2`) se expirado
-- Footer "Enviado via Kuramei" em `#9ca3af`
-- `formatTimeRemaining(expiresAt)` — helper local em cada renderer
+### pnpm-workspace.yaml glob
+`packages/*` covers all direct children of `packages/`. Nested packages (e.g. `packages/experiences/*`) need a separate entry.
 
 ---
 
-## [2026-02-23] - US-001
-- Adicionados `MessageSpec` e `ListSpec` ao schema com Zod validators
-- `UISpecSchema` atualizado para `z.discriminatedUnion('type', [...])`
-- Criados `src/renderer/message.ts` e `src/renderer/list.ts`
-- `index.ts` exporta todos os novos tipos, schemas e renderers
-- `apps/ui-worker/src/renderer.ts` usa switch por `spec.type`
-- Files: `packages/ui-engine/src/spec/schema.ts`, `packages/ui-engine/src/index.ts`, `packages/ui-engine/src/renderer/message.ts`, `packages/ui-engine/src/renderer/list.ts`, `apps/ui-worker/src/renderer.ts`
+## 2026-02-23 - US-002
+- Created `infra/cdk/` CDK package with 4 stacks: DynamoStack, AgentStack, WebhookStack, SchedulerStack
+- DynamoStack: `kuramei-main` table (TTL) + `kuramei-reminders` table with GSI `status-when-index`
+- AgentStack: Lambda `kuramei-agent-processor` (arm64, Node 20, 60s timeout, 512MB), ESM bundle
+- WebhookStack: Lambda `kuramei-webhook-handler` (arm64, Node 20, 30s timeout) + LambdaRestApi
+- SchedulerStack: Lambda `kuramei-reminder-scheduler` (arm64, Node 20, 5m timeout) + EventBridge rate(1 min)
+- Updated `apps/ui-worker/wrangler.toml`: name=kuramei-ui, route app.kuramei.app/*, updated compatibility_date
+- Created `docs/runbook-deploy.md`: 8-step deploy guide (AWS prereqs → CDK bootstrap → deploy → Secrets Manager → Wrangler → DNS → Meta webhook → smoke test)
+- Created `.env.production.example`: all required env var keys for Lambda
+- Updated `pnpm-workspace.yaml`: added `infra/*` glob
 - **Learnings:**
-  - `z.discriminatedUnion` é preferível a `z.union` quando há campo discriminador — melhor inferência de tipo e mensagens de erro
-  - `formatTimeRemaining` é helper local duplicado em cada renderer — aceitável para manter renderers independentes sem shared util
-
+  - `NodejsFunction`'s `bundling.format` requires `OutputFormat.ESM` (enum), not the string `'esm'` — even with `as const`, it's not assignable to the enum type
+  - CDK's strict types (`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`) can conflict with CDK's own API surface — override these two in infra/cdk's tsconfig
+  - `infra/*` workspace glob is needed in `pnpm-workspace.yaml` (not covered by `packages/*`)
+  - CDK tsconfig uses `rootDir: "."` (not `./src`) since CDK apps have both `bin/` and `lib/` as top-level dirs
 ---
 
-## [2026-02-23] - US-002
-- Adicionado `ExperiencePackage` interface a `@kuramei/sdk` (`packages/sdk/src/experience-package.ts`)
-- Adicionado `packages/experiences/*` ao `pnpm-workspace.yaml`
-- Criado `packages/experiences/navigation/` com `package.json`, `tsconfig.json` e `src/index.ts`
-- `navigationExperience` exporta: `name`, `description`, `systemPromptSection` (PT-BR) e `tools: [generateUiTool]`
-- Files: `packages/sdk/src/experience-package.ts`, `packages/sdk/src/index.ts`, `pnpm-workspace.yaml`, `packages/experiences/navigation/package.json`, `packages/experiences/navigation/tsconfig.json`, `packages/experiences/navigation/src/index.ts`
+## 2026-02-23 - US-004
+- Updated `packages/tools/src/builtin/generate-ui.ts`: rich description covering all 3 types (navigation, message, list); full inputSchema with all fields for all types; switched handler validation from `NavigationSpecSchema` to `UISpecSchema`
+- Updated `packages/experiences/navigation/src/index.ts`: systemPromptSection reduced to behavioral contract only — no more routing instructions
+- Updated `packages/experiences/reminder/src/index.ts`: `create_reminder` description enriched with PT-BR linguistic variations; systemPromptSection reduced to behavioral contract only
 - **Learnings:**
-  - `packages/experiences/*` é um glob de segundo nível — o pnpm-workspace.yaml original com `packages/*` NÃO cobre sub-diretórios automaticamente; precisa de entrada explícita
-  - `ExperiencePackage` foi adicionado em US-002 (não US-004b como indicado no PRD) porque é prerequisito de build — US-004b pode complementar com `buildSystemPrompt`
-  - tsconfig de sub-diretório usa `../../../tsconfig.base.json` (3 níveis acima para `packages/experiences/navigation/`)
-
+  - Experience packages (`packages/experiences/*`) do not have lint scripts — `pnpm lint` from root only covers packages with the script configured
+  - Tool descriptions act as the LLM router: the richer and more explicit the description, the less work the systemPromptSection needs to do
+  - systemPromptSections should be behavioral contracts (post-tool behavior, edge cases), not routing instructions — routing belongs in tool descriptions
 ---
 
-## [2026-02-23] - US-003
-- Criado `packages/experiences/reminder/src/index.ts` com `reminderExperience: ExperiencePackage`
-- `create_reminder` tool: Zod validation, ulid ID, DynamoDB PutCommand (REMINDERS_TABLE), `generateUI()` do `@kuramei/sdk`, retorna `{ success: true, data: { url } }`
-- `systemPromptSection` em PT-BR: instrui LLM a pedir "quando" antes de chamar a tool, confirmar com link, não usar para consultar
-- Adicionado `REMINDERS_TABLE` ao `.env.example`
-- Files: `packages/experiences/reminder/src/index.ts`, `.env.example`
+## 2026-02-23 - US-003
+- Added `list_reminders` tool to `packages/experiences/reminder/src/index.ts`
+- DynamoDB `QueryCommand` with `PK = USER#<userId>` + `FilterExpression status = 'pending'`
+- Client-side sort by `when` ascending (SK is `REMINDER#<ulid>`, not `when`)
+- `formatWhenPtBr`: parses ISO dates with `Intl.DateTimeFormat`; returns "Hoje", "Amanhã", or `DD/MM` format; falls back to raw string if unparseable
+- `getTodayPrefix`: uses `sv-SE` locale with São Paulo timezone to get `YYYY-MM-DD` string
+- `filter='today'`: `when.startsWith(todayPrefix)`; `filter='upcoming'`: `when >= todayPrefix`
+- Empty result → `MessageSpec`; non-empty → `ListSpec` with label + description
+- `systemPromptSection` updated with explicit "Não listar reminders logo após criar..." contract
+- `reminderExperience.tools` updated to `[createReminderTool, listRemindersTool]`
+- `pnpm build` → 15/15, `pnpm typecheck` → clean
 - **Learnings:**
-  - `defineTool<TInput>` com genérico explícito resulta em `ToolDefinition<TInput>[]` não assignable a `ToolDefinition<unknown>[]` (ExperiencePackage.tools) — usar `defineTool({...})` sem genérico; Zod faz o parse internamente no handler
-  - Mesmo padrão do `navigationExperience` confirmado: handler recebe `unknown`, Zod valida, TypeScript satisfeito
-
-### buildSystemPrompt Pattern
-`buildSystemPrompt(base, packages)` em `@kuramei/sdk` — concatena base + seções de cada package no formato `== <name> ==\n<section>`, separadas por `\n\n`. Consumidores (agent-processor) chamam `experiences.flatMap(e => e.tools.map(adaptTool))` para coletar todas as tools.
-
+  - `status` is a DynamoDB reserved word — must alias as `#status` in `ExpressionAttributeNames`
+  - `sv-SE` locale produces `YYYY-MM-DD` format natively — handy for prefix comparisons without string manipulation
+  - `upcoming` filter needs `when >= todayPrefix` to exclude past pending items (DynamoDB `FilterExpression` only filters by `status`, not by date)
 ---
 
-## [2026-02-23] - US-004a
-- Criado `packages/sdk/src/generate-ui-helper.ts` com função `generateUI(spec, { userId })` — lógica extraída do handler original (JWT HS256, Cloudflare KV REST, URL)
-- Adicionado `@kuramei/ui-engine: workspace:*` em `packages/sdk/package.json` e `{ "path": "../ui-engine" }` nas tsconfig references do sdk
-- Exportado `generateUI`, `GenerateUIContext`, `GenerateUIResult` de `packages/sdk/src/index.ts`
-- `packages/tools/src/builtin/generate-ui.ts` MANTEVE implementação interna (não virou thin wrapper) — comentário adicionado explicando o motivo
-- Files: `packages/sdk/src/generate-ui-helper.ts`, `packages/sdk/src/index.ts`, `packages/sdk/package.json`, `packages/sdk/tsconfig.json`, `packages/tools/src/builtin/generate-ui.ts`
+## 2026-02-23 - US-006a
+- Created `packages/experiences/weather/` with `package.json`, `tsconfig.json`, `src/index.ts`
+- `get_weather` tool: fetches `https://wttr.in/{location}?format=j1`, extracts `current_condition[0]` (temp_C, FeelsLikeC, weatherDesc) and `weather[0]` (maxtempC, mintempC)
+- Returns `MessageSpec` with `🌤️ Tempo em {location}` on success; friendly PT-BR error MessageSpec on fetch failure or missing data
+- `weatherExperience.systemPromptSection`: instructs LLM to add contextual tip (e.g. "leve guarda-chuva!")
+- Updated `apps/agent-processor`: `package.json` dependency + `tsconfig.json` reference + `import { weatherExperience }` + added to `experiences` array
+- `pnpm build` → 16/16 packages, all checks passed (lint, typecheck, pre-commit hooks)
 - **Learnings:**
-  - Dependência circular `@kuramei/sdk` → `@kuramei/tools` → `@kuramei/sdk` impede fazer o generate-ui tool um thin wrapper: Turborepo detecta ciclos no grafo de build e falha. A AC "becomes a thin wrapper" não foi satisfeita; o helper em sdk existe para uso por consumidores externos ao ToolRegistry (ex: futuro `create_reminder`)
-  - Para evitar ciclos em monorepos Turborepo, nunca crie dependências que fechem um loop nas referências TypeScript project + npm
-  - `pnpm install` (sem `--frozen-lockfile`) necessário ao adicionar dependência nova em workspace
-
+  - wttr.in JSON field path is `current_condition[0]` (not `current`), `weather[0]` for today's forecast
+  - `packages/experiences/*` glob already in `pnpm-workspace.yaml` — no update needed
+  - Weather package has no DynamoDB dependency — lighter than reminder; `devDependencies` only needs `typescript`
 ---
 
-## [2026-02-23] - US-005
-- Reescrito `scripts/smoke-test.ts` com 3 novos cenários: `message`, `list`, `reminder`, `all`
-- `all` roda `map + message + list` (cenários sem DynamoDB) sequencialmente, abrindo 3 abas no browser
-- `reminder`: importa `reminderExperience` via dynamic import, chama `tools[0].handler` diretamente, verifica `{ success: true, url: string }`, skip gracioso se `REMINDERS_TABLE` não configurado
-- Backward compat mantida: `happy` e sem argumento continuam funcionando como `map`
-- Files: `scripts/smoke-test.ts`
+## 2026-02-23 - US-001
+- Created `packages/kv-client/` with `put`, `get`, `del` functions wrapping Cloudflare KV REST API
+- Removed inline `fetch` KV logic from `packages/tools/src/builtin/generate-ui.ts` and `packages/sdk/src/generate-ui-helper.ts`
+- Updated `package.json` + `tsconfig.json` for both `@kuramei/tools` and `@kuramei/sdk` to add `@kuramei/kv-client` dependency
+- `apps/ui-worker` unchanged — reads KV via native Wrangler binding (`env.KV.get`), not REST
 - **Learnings:**
-  - tsx v4 suporta top-level `await` em arquivos ESM (`"type": "module"` no root package.json)
-  - Dynamic import com caminho relativo `../packages/.../src/index.js` funciona com tsx — ele resolve `.js` → `.ts` para arquivos locais
-  - Não há `tsconfig.json` na raiz — scripts/ não é verificado pelo `pnpm typecheck`; tsx faz transpile sem checagem estrita
-  - Para cenários de erro (expired, invalid-jwt), reusar a mesma `runKvScenario` com opções em vez de duplicar lógica
-
+  - pnpm workspace glob `packages/*` already covers `packages/kv-client` — no change to `pnpm-workspace.yaml` needed
+  - Both `package.json` dependencies AND `tsconfig.json` project references must be updated when adding a workspace dep; missing either causes build or type-resolution failures
+  - `tsc --build` with project references requires `"composite": true` in depended-on packages — already set in `tsconfig.base.json`
 ---
 
-## [2026-02-23] - US-004b
-- Criado `packages/sdk/src/system-prompt.ts` com `buildSystemPrompt(base, packages): string`
-- Exportado `buildSystemPrompt` de `packages/sdk/src/index.ts`
-- `apps/agent-processor/package.json`: adicionadas deps `@kuramei/sdk`, `@kuramei/experience-navigation`, `@kuramei/experience-reminder`
-- `apps/agent-processor/tsconfig.json`: adicionadas references para sdk, experience-navigation, experience-reminder
-- `apps/agent-processor/src/index.ts`: carrega `navigationExperience` e `reminderExperience`, usa `buildSystemPrompt` para compor system prompt (PT-BR), coleta tools via `experiences.flatMap(e => e.tools.map(adaptTool))`
-- Files: `packages/sdk/src/system-prompt.ts`, `packages/sdk/src/index.ts`, `apps/agent-processor/src/index.ts`, `apps/agent-processor/package.json`, `apps/agent-processor/tsconfig.json`
+## 2026-02-23 - US-005
+- Created `apps/reminder-scheduler/` with `package.json`, `tsconfig.json`, `src/index.ts`
+- Lambda handler: queries GSI `status-when-index` with `#status = :pending AND #when <= :now`, Limit 25
+- For each triggered reminder: sends WhatsApp via `TenantBoundSender` (`⏰ Lembrete: *{text}*`)
+- After sending: updates DynamoDB status → `triggered` + `triggeredAt`, or `failed` + `failedAt`
+- Updated `packages/experiences/reminder/src/index.ts`: `create_reminder` now stores `phoneNumber: context.userId` in DynamoDB item
+- Updated `infra/cdk/lib/scheduler-stack.ts`: added comments for `WHATSAPP_PHONE_NUMBER_ID` and `WHATSAPP_ACCESS_TOKEN` (set manually post-deploy)
+- `pnpm build` → 18/18, `pnpm typecheck` → 31/31 clean
 - **Learnings:**
-  - `pnpm install --frozen-lockfile` falha ao adicionar deps; usar `pnpm install` sem flag para atualizar lockfile automaticamente
-  - `experiences.flatMap(e => e.tools.map(adaptTool))` é o padrão limpo para coletar tools de múltiplos experience packages
-  - buildSystemPrompt output: `[base]\n\n== <name> ==\n<section>` para cada package, separados por `\n\n`
+  - `status` is a DynamoDB reserved word even in `KeyConditionExpression` on GSI — must alias as `#status` in `ExpressionAttributeNames` (same as FilterExpression)
+  - `context.userId` in `@kuramei/tools` is the raw WhatsApp phone number — can be stored directly as `phoneNumber` in DynamoDB for use by scheduler
+  - `TenantBoundSender` needs only `whatsappPhoneId` (non-secret) and `whatsappTokenSecret` (env var name). PHONE_NUMBER_ID is set as Lambda env var; ACCESS_TOKEN is injected post-deploy
+  - `apps/*` glob already in `pnpm-workspace.yaml` — no update needed for new app packages
+---
 
+## 2026-02-23 - US-006b
+- Created `packages/experiences/currency/` with `package.json`, `tsconfig.json`, `src/index.ts`
+- `convert_currency` tool: fetches `https://open.er-api.com/v6/latest/{from}`, extracts `rates[to]`
+- Calculates `result = amount * rate`, formats to 2 decimal places; rate formatted to 4 decimal places
+- On success: `MessageSpec` with `💱 {amount} {from} = {result} {to}` title + rate + update date
+- On missing currency (rate undefined): `MessageSpec` listing 9 main supported currencies
+- On fetch error: friendly PT-BR error `MessageSpec`
+- `currencyExperience.systemPromptSection`: instructs LLM to add time context if relevant
+- Updated `apps/agent-processor`: `package.json` dependency + `tsconfig.json` reference + `import { currencyExperience }` + added to `experiences` array
+- `pnpm build` → 17/17 packages, `pnpm typecheck` → 30/30 clean
+- **Learnings:**
+  - `open.er-api.com` free tier requires no API key — response has `rates` object keyed by ISO code; missing key = invalid currency
+  - Zod `.transform((v) => v.toUpperCase())` on string fields normalizes input before validation — clean pattern for ISO codes
+  - `packages/experiences/*` glob already in `pnpm-workspace.yaml` — no update needed (same as weather)
 ---
 

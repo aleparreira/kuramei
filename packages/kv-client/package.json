@@ -1,8 +1,8 @@
 {
-  "name": "@kuramei/tools",
-  "version": "0.0.1",
+  "name": "@kuramei/kv-client",
+  "version": "0.1.0",
   "private": true,
-  "description": "Tool registration SDK",
+  "description": "Cloudflare KV REST API client for Lambda-side code",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,16 +17,9 @@
     "build": "tsc --build",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "@kuramei/kv-client": "workspace:*",
-    "@kuramei/ui-engine": "workspace:*"
+    "lint": "eslint src"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "vitest": "^3.0.0"
+    "typescript": "^5.6.0"
   }
 }

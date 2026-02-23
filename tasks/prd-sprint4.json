@@ -1,0 +1,191 @@
+{
+  "name": "Kuramei Sprint 4 — Produção + Scheduler + Novos Experience Packages",
+  "description": "Produto em produção com primeiro usuário real + lembretes que disparam + dois novos Experience Packages. Critério: Alexandre envia lembrete via WhatsApp real e recebe notificação no horário.",
+  "branchName": "feat/sprint4",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "@kuramei/kv-client — eliminar duplicação de lógica KV",
+      "description": "Tech debt: extrair lógica de acesso ao Cloudflare KV para pacote compartilhado.",
+      "acceptanceCriteria": [
+        "Create packages/kv-client/ with package.json (name: @kuramei/kv-client, version: 0.1.0), tsconfig.json",
+        "Create src/index.ts exporting: put(key: string, value: string, ttlSeconds: number): Promise<void>, get(key: string): Promise<string | null>, del(key: string): Promise<void>",
+        "Implementation uses Cloudflare KV REST API: https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/{CLOUDFLARE_KV_NAMESPACE_ID}/values/{key}",
+        "Config via env vars: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_KV_NAMESPACE_ID, CLOUDFLARE_API_TOKEN",
+        "Update packages/sdk/src/generate-ui-helper.ts to use @kuramei/kv-client instead of inline fetch",
+        "Update packages/tools/src/builtin/generate-ui.ts to use @kuramei/kv-client instead of inline fetch",
+        "Update apps/ui-worker/src/index.ts: keep KV binding (wrangler) for reading — Worker uses native KV binding, not the REST client",
+        "Remove duplicate KV fetch logic from both generate-ui.ts and generate-ui-helper.ts",
+        "Add packages/kv-client/* to pnpm-workspace.yaml (verify glob covers it)",
+        "pnpm build passes (all packages)",
+        "pnpm typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "NOTE: ui-worker READS from KV via Wrangler native binding (env.KV.get) — this does NOT use @kuramei/kv-client. Only Lambda-side code (generate-ui-helper, generate-ui tool) uses the REST client.",
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-002",
+      "title": "Deploy produção — IaC + runbook (gerado por Ralph, executado por Alexandre)",
+      "description": "Gerar toda a infraestrutura como código e runbook passo a passo para Alexandre executar o primeiro deploy real.",
+      "acceptanceCriteria": [
+        "IMPORTANT: Ralph generates IaC and runbook. Alexandre executes manually. Do NOT attempt to run aws, cdk deploy, wrangler deploy, or any cloud CLI commands.",
+        "Create infra/cdk/ with: package.json, tsconfig.json, bin/kuramei.ts (CDK app entry), lib/webhook-stack.ts (Lambda webhook-handler + API GW), lib/agent-stack.ts (Lambda agent-processor), lib/scheduler-stack.ts (Lambda reminder-scheduler + EventBridge rule), lib/dynamo-stack.ts (kuramei-main and kuramei-reminders tables with GSI)",
+        "Lambda configs: runtime Node.js 20, architecture arm64, timeout 30s (webhook), 60s (agent), 5m (scheduler)",
+        "DynamoDB kuramei-reminders table: PAY_PER_REQUEST, PK=PK (String), SK=SK (String), GSI status-when-index: PK=status (String), SK=when (String)",
+        "Create apps/ui-worker/wrangler.toml with: name=kuramei-ui, main=src/index.ts, compatibility_date, kv_namespaces binding, routes for kuramei.app/* (or app.kuramei.app/*)",
+        "Create docs/runbook-deploy.md with step-by-step instructions for Alexandre: (1) AWS prerequisites (credentials, CDK bootstrap), (2) pnpm install in infra/cdk, (3) cdk deploy --all, (4) set secrets in Secrets Manager, (5) wrangler secret put KURAMEI_JWT_SECRET, (6) wrangler deploy in apps/ui-worker, (7) Meta webhook config, (8) smoke test against prod",
+        "Create .env.production.example with all required env vars for Lambda (no values, just keys)",
+        "pnpm build passes (infra/cdk compiles without errors)"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "This US delivers IaC + documentation only. Alexandre runs the actual deployment. Mark passes:true when runbook + CDK code compile and docs are complete.",
+      "dependsOn": [
+        "US-001"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-004",
+      "title": "Correção arquitetural — tool descriptions ricas, systemPromptSections como contratos",
+      "description": "Reescrever tool descriptions para assumir roteamento LLM. Reduzir systemPromptSections a contratos comportamentais.",
+      "acceptanceCriteria": [
+        "Update packages/tools/src/builtin/generate-ui.ts tool description to be rich and cover all use cases: navigation/map/location, confirmation/message, structured lists. Include parameter examples per type.",
+        "New generate_ui description must cover: 'for any location, map, navigation, or route request', 'for confirmations and summaries', 'for structured lists'. Params: type 'navigation' (destination: string, departureTime?, avoidTolls?, preferredApp?), type 'message' (title, body, actions?), type 'list' (title, items[]).",
+        "Update packages/experiences/navigation/src/index.ts: remove routing instructions from systemPromptSection. New systemPromptSection must ONLY contain: 'Após chamar generate_ui, responder sempre com texto contextual amigável em PT-BR além do link. Nunca enviar só a URL sem contexto.'",
+        "Update packages/experiences/reminder/src/index.ts create_reminder tool description to be rich: cover linguistic variations ('me lembra de X', 'lembra eu de Y às Z', 'não me deixa esquecer de W'). State clearly that when is required and model must ask if missing.",
+        "Update packages/experiences/reminder/src/index.ts systemPromptSection to ONLY contain behavioral contracts: 'Se when não especificado, perguntar em uma única mensagem antes de chamar create_reminder. Nunca criar sem when. Não listar no mesmo turn que criar.'",
+        "pnpm build passes",
+        "pnpm lint passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Key rule: tool descriptions = router. systemPromptSection = behavioral contracts only.",
+      "dependsOn": [
+        "US-001"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-003",
+      "title": "list_reminders — visualizar lembretes pendentes",
+      "description": "Adicionar capacidade de listar lembretes ao experience-reminder.",
+      "acceptanceCriteria": [
+        "Add tool list_reminders to packages/experiences/reminder/src/index.ts",
+        "list_reminders Zod input schema: { filter: z.enum(['today', 'upcoming', 'all']).default('upcoming') }",
+        "list_reminders handler: query DynamoDB table REMINDERS_TABLE where PK='USER#<userId>' using FilterExpression status = 'pending', sort results by when ascending",
+        "If filter='today': filter items where when starts with today's date (YYYY-MM-DD in ISO string)",
+        "If non-empty result: call generateUI() with ListSpec: { type: 'list', title: 'Seus lembretes ⏰', items: reminder.map(r => ({ label: r.text, description: formatWhenPtBr(r.when) })) }",
+        "If empty result: call generateUI() with MessageSpec: { type: 'message', title: 'Nenhum lembrete pendente', body: 'Você está em dia! ✅', actions: [] }",
+        "list_reminders tool description: 'Lists the user's pending reminders as a visual page. Use when the user asks about their reminders, schedule, or what they have coming up. Filter: today for today only, upcoming for all future (default), all for everything.'",
+        "Add to systemPromptSection (as additional contract, not replacing existing): 'Não listar reminders logo após criar um no mesmo turn — aguardar próxima interação do usuário.'",
+        "reminderExperience.tools updated to include list_reminders",
+        "pnpm build passes",
+        "pnpm typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "formatWhenPtBr: simple ISO-to-PT-BR format (e.g. '2026-02-24T20:00:00-03:00' → 'Amanhã às 20:00'). No external date lib — use Intl.DateTimeFormat.",
+      "dependsOn": [
+        "US-004"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-006a",
+      "title": "Experience Package Clima (@kuramei/experience-weather)",
+      "description": "Terceiro Experience Package — consulta de tempo via wttr.in (sem API key).",
+      "acceptanceCriteria": [
+        "Create packages/experiences/weather/ with package.json (name: @kuramei/experience-weather, version: 0.1.0), tsconfig.json, src/index.ts",
+        "Tool get_weather with Zod input: { location: z.string().min(1) }",
+        "Implementation: fetch('https://wttr.in/{encodeURIComponent(location)}?format=j1') — free, no API key",
+        "Extract from response: current.temp_C, current.weatherDesc[0].value, current.FeelsLikeC, weather[0].maxtempC, weather[0].mintempC",
+        "On success: call generateUI() with MessageSpec: { type: 'message', title: '🌤️ Tempo em {location}', body: '{condition} • {temp}°C (sensação {feels_like}°C)\\nMáx {max}°C / Mín {min}°C hoje', actions: [] }",
+        "On fetch error or location not found: call generateUI() with MessageSpec with friendly PT-BR error",
+        "get_weather tool description: 'Gets current weather and today\\'s forecast for any city. Use for any question about weather, temperature, rain, or climate — como está o tempo em X, vai chover em Y, que roupa usar em Z, temperatura de W. Requires location name.'",
+        "weatherExperience.systemPromptSection: 'Após retornar clima, adicionar dica contextual amigável em PT-BR se relevante (ex: leve guarda-chuva! se vai chover).'",
+        "Export weatherExperience: ExperiencePackage from src/index.ts",
+        "Update apps/agent-processor/src/index.ts to import and load weatherExperience",
+        "pnpm build passes",
+        "pnpm typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "wttr.in returns JSON with nested structure. Handle gracefully if API is slow or returns unexpected shape.",
+      "dependsOn": [
+        "US-004"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-006b",
+      "title": "Experience Package Cotação (@kuramei/experience-currency)",
+      "description": "Quarto Experience Package — conversão de moeda via open.er-api.com (sem API key).",
+      "acceptanceCriteria": [
+        "Create packages/experiences/currency/ with package.json (name: @kuramei/experience-currency, version: 0.1.0), tsconfig.json, src/index.ts",
+        "Tool convert_currency with Zod input: { amount: z.number().positive(), from: z.string().length(3).toUpperCase(), to: z.string().length(3).toUpperCase() }",
+        "Implementation: fetch('https://open.er-api.com/v6/latest/{from}') — free tier, no API key required",
+        "Calculate result = amount * rates[to], format to 2 decimal places",
+        "On success: call generateUI() with MessageSpec: { type: 'message', title: '💱 {amount} {from} = {result} {to}', body: 'Taxa: 1 {from} = {rate:.4f} {to}\\nAtualizado em: {date}', actions: [] }",
+        "On invalid currency (rate not found): call generateUI() with MessageSpec listing main supported currencies (USD, EUR, BRL, GBP, JPY, ARS, CLP, COP, MXN)",
+        "On fetch error: friendly PT-BR error MessageSpec",
+        "convert_currency tool description: 'Converts currency amounts using real-time exchange rates. Use for any currency conversion question — quanto é X dólares em reais, converte Y euros para BRL, quanto é Z libras, cotação do dólar hoje. Infer from/to currencies from context; default to BRL if destination not specified.'",
+        "currencyExperience.systemPromptSection: 'Ao responder cotação, adicionar contexto se relevante (ex: taxa de hoje às {hora}).'",
+        "Export currencyExperience: ExperiencePackage from src/index.ts",
+        "Update apps/agent-processor/src/index.ts to import and load currencyExperience",
+        "pnpm build passes",
+        "pnpm typecheck passes"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Currencies are 3-letter ISO codes (USD, BRL, EUR etc). Validate input and give helpful error if user passes something unexpected.",
+      "dependsOn": [
+        "US-004"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-005",
+      "title": "Reminder Scheduler — lembretes que disparam no horário",
+      "description": "Lambda que roda a cada minuto, verifica lembretes vencidos, envia WhatsApp e atualiza status.",
+      "acceptanceCriteria": [
+        "Create apps/reminder-scheduler/ with package.json (@kuramei/reminder-scheduler), tsconfig.json, src/index.ts",
+        "Lambda handler: triggered by EventBridge rule rate(1 minute)",
+        "Query DynamoDB kuramei-reminders using GSI status-when-index: KeyConditionExpression = 'status = :pending AND #when <= :now', ExpressionAttributeNames = { '#when': 'when' }, ExpressionAttributeValues = { ':pending': 'pending', ':now': new Date().toISOString() }, Limit: 25",
+        "For each triggered reminder: send WhatsApp message via TenantBoundSender (from @kuramei/whatsapp): '⏰ Lembrete: *{text}*'",
+        "After sending: update DynamoDB item status → 'triggered', add triggeredAt = new Date().toISOString()",
+        "Phone number lookup: reminder item must store phoneNumber (add phoneNumber field to create_reminder DynamoDB write in US-003 handler — update create_reminder to store phoneNumber from context.userId which is the hashed phone — NOTE: need raw phoneNumber stored separately, add rawPhone field to DynamoDB item using context.userId before hashing if available, or store userId as phone directly)",
+        "Error handling: if WhatsApp send fails, log error but still update status to 'failed' (not 'triggered') and add failedAt",
+        "IMPORTANT: EventBridge Scheduler (cron) is DIFFERENT from EventBridge for async messaging (which is vetoed). A simple rate(1 minute) rule for a scheduler is acceptable.",
+        "pnpm build passes",
+        "pnpm typecheck passes",
+        "Add reminder-scheduler Lambda config to infra/cdk/lib/scheduler-stack.ts (update the stack created in US-002)"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "BLOCKER: phone number must be stored in reminder DynamoDB item (not just hashed userId). Coordinate with create_reminder handler in US-003 to store rawPhone or phoneNumber directly. If context.userId is the WhatsApp phone number, store it directly.",
+      "dependsOn": [
+        "US-002",
+        "US-003"
+      ],
+      "completionNotes": "Completed by agent"
+    }
+  ],
+  "metadata": {
+    "sprint": 4,
+    "createdAt": "2026-02-23",
+    "createdBy": "forja",
+    "briefingSource": "/Users/xande/.openclaw/workspace-arcos/memory/briefing-forja-sprint4.md",
+    "keyDecisions": [
+      "US-002: Ralph generates IaC + runbook only — Alexandre deploys manually",
+      "US-005: EventBridge Scheduler (cron) is different from vetoed EventBridge messaging flow — approved",
+      "Tool descriptions = LLM router. systemPromptSection = behavioral contracts only (US-004)",
+      "@kuramei/kv-client replaces inline KV fetch in both Lambda packages",
+      "ui-worker READS KV via Wrangler native binding — does NOT use @kuramei/kv-client"
+    ],
+    "updatedAt": "2026-02-23T22:26:03.309Z"
+  }
+}
