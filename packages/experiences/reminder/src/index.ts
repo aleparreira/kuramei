@@ -15,8 +15,10 @@ const createReminderTool = defineTool({
   name: 'create_reminder',
   description:
     'Create a reminder for the user and return a confirmation page link. ' +
-    'Use when the user asks to be reminded of something. ' +
-    'Always ask for the time/date (when) if not provided before calling this tool.',
+    'Use for any reminder or "don\'t forget" request, including linguistic variations such as: ' +
+    '"me lembra de X", "lembra eu de Y às Z", "não me deixa esquecer de W", ' +
+    '"me avisa na sexta", "me manda mensagem amanhã cedo". ' +
+    'The "when" field is required — if the user does not specify when, ask before calling this tool.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -69,11 +71,6 @@ export const reminderExperience: ExperiencePackage = {
   description: 'Creates reminders for the user and returns a confirmation page link',
   systemPromptSection: `## Lembretes
 
-Quando o usuário pedir para ser lembrado de algo, use a ferramenta \`create_reminder\`.
-
-Regras:
-- Nunca crie um lembrete sem saber **quando** — se o usuário não informar, pergunte antes de chamar a ferramenta.
-- Após criar o lembrete, confirme com o link: "Lembrete criado! Confira aqui: <link>"
-- \`create_reminder\` serve exclusivamente para **criar** lembretes — não use para consultar lembretes existentes.`,
+Se when não especificado, perguntar em uma única mensagem antes de chamar create_reminder. Nunca criar sem when. Não listar no mesmo turn que criar.`,
   tools: [createReminderTool],
 };

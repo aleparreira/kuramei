@@ -11,7 +11,7 @@
  */
 
 import { createHmac, createHash, randomUUID } from 'node:crypto';
-import { NavigationSpecSchema } from '@kuramei/ui-engine';
+import { UISpecSchema } from '@kuramei/ui-engine';
 import type { UISpec, UISpecToken } from '@kuramei/ui-engine';
 import * as kv from '@kuramei/kv-client';
 import { defineTool } from '../registry.js';
@@ -38,27 +38,74 @@ function signJwt(payload: Record<string, unknown>, secret: string): string {
 export const generateUiTool = defineTool({
   name: 'generate_ui',
   description:
-    'Generate a navigation page for the user and return a shareable link. ' +
-    'Use when the user asks to navigate somewhere or needs a map link.',
+    'Generate a rich UI page for the user and return a shareable link. ' +
+    'Use this tool for ANY of the following use cases:\n' +
+    '1. NAVIGATION / MAP / LOCATION / ROUTE: when the user asks to go somewhere, needs a map, ' +
+    'wants directions, or mentions any location or route. ' +
+    'Example: "me leva para o shopping", "como chego em Campinas", "rota para o aeroporto". ' +
+    'Call with: { "type": "navigation", "version": "1.0", "destination": "<place or address>", ' +
+    '"departureTime": "<ISO 8601, optional>", "avoidTolls": <boolean, optional>, ' +
+    '"preferredApp": "waze"|"google-maps"|"apple-maps" (optional) }\n' +
+    '2. CONFIRMATION / MESSAGE / SUMMARY: when you need to show a confirmation screen, ' +
+    'summary, or informational message to the user. ' +
+    'Call with: { "type": "message", "title": "<title>", "body": "<body text>", ' +
+    '"actions": [{ "label": "<label>", "url": "<url>" }] (optional) }\n' +
+    '3. STRUCTURED LIST: when the user needs to see a list of items, options, or results. ' +
+    'Call with: { "type": "list", "title": "<title>", ' +
+    '"items": [{ "label": "<label>", "description": "<optional description>" }] }',
   inputSchema: {
     type: 'object',
     properties: {
-      type: { type: 'string', description: 'Spec type — must be "navigation"' },
-      version: { type: 'string', description: 'Spec version — must be "1.0"' },
-      destination: { type: 'string', description: 'Navigation destination (city, address, or place name)' },
-      departureTime: { type: 'string', description: 'Optional ISO 8601 departure time' },
-      avoidTolls: { type: 'boolean', description: 'Whether to avoid tolls' },
+      type: {
+        type: 'string',
+        enum: ['navigation', 'message', 'list'],
+        description: 'Spec type: "navigation" for maps/routes, "message" for confirmations/summaries, "list" for structured lists',
+      },
+      // navigation fields
+      version: { type: 'string', description: 'Required when type is "navigation" — always "1.0"' },
+      destination: { type: 'string', description: 'Navigation destination (place name or address) — required when type is "navigation"' },
+      departureTime: { type: 'string', description: 'Optional ISO 8601 departure time — only for type "navigation"' },
+      avoidTolls: { type: 'boolean', description: 'Whether to avoid tolls — only for type "navigation"' },
       preferredApp: {
         type: 'string',
-        description: 'Preferred maps app: waze | google-maps | apple-maps',
+        enum: ['waze', 'google-maps', 'apple-maps'],
+        description: 'Preferred maps app — only for type "navigation"',
+      },
+      // message fields
+      title: { type: 'string', description: 'Page title — required when type is "message" or "list"' },
+      body: { type: 'string', description: 'Message body text — required when type is "message"' },
+      actions: {
+        type: 'array',
+        description: 'Optional action buttons — only for type "message"',
+        items: {
+          type: 'object',
+          properties: {
+            label: { type: 'string' },
+            url: { type: 'string' },
+          },
+          required: ['label', 'url'],
+        },
+      },
+      // list fields
+      items: {
+        type: 'array',
+        description: 'List items — required when type is "list"',
+        items: {
+          type: 'object',
+          properties: {
+            label: { type: 'string' },
+            description: { type: 'string' },
+          },
+          required: ['label'],
+        },
       },
     },
-    required: ['type', 'version', 'destination'],
+    required: ['type'],
   },
   handler: async (input, context) => {
-    const parsed = NavigationSpecSchema.safeParse(input);
+    const parsed = UISpecSchema.safeParse(input);
     if (!parsed.success) {
-      return { success: false, error: `Invalid navigation spec: ${parsed.error.message}` };
+      return { success: false, error: `Invalid UI spec: ${parsed.error.message}` };
     }
 
     // Cast: Zod v3 inferred type conflicts with exactOptionalPropertyTypes — validation already ran.

@@ -33,6 +33,16 @@ New packages follow this pattern:
   - CDK tsconfig uses `rootDir: "."` (not `./src`) since CDK apps have both `bin/` and `lib/` as top-level dirs
 ---
 
+## 2026-02-23 - US-004
+- Updated `packages/tools/src/builtin/generate-ui.ts`: rich description covering all 3 types (navigation, message, list); full inputSchema with all fields for all types; switched handler validation from `NavigationSpecSchema` to `UISpecSchema`
+- Updated `packages/experiences/navigation/src/index.ts`: systemPromptSection reduced to behavioral contract only — no more routing instructions
+- Updated `packages/experiences/reminder/src/index.ts`: `create_reminder` description enriched with PT-BR linguistic variations; systemPromptSection reduced to behavioral contract only
+- **Learnings:**
+  - Experience packages (`packages/experiences/*`) do not have lint scripts — `pnpm lint` from root only covers packages with the script configured
+  - Tool descriptions act as the LLM router: the richer and more explicit the description, the less work the systemPromptSection needs to do
+  - systemPromptSections should be behavioral contracts (post-tool behavior, edge cases), not routing instructions — routing belongs in tool descriptions
+---
+
 ## 2026-02-23 - US-001
 - Created `packages/kv-client/` with `put`, `get`, `del` functions wrapping Cloudflare KV REST API
 - Removed inline `fetch` KV logic from `packages/tools/src/builtin/generate-ui.ts` and `packages/sdk/src/generate-ui-helper.ts`
