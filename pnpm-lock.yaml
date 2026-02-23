@@ -108,6 +108,10 @@ importers:
         version: 5.9.3
 
   packages/tools:
+    dependencies:
+      '@kuramei/ui-engine':
+        specifier: workspace:*
+        version: link:../ui-engine
     devDependencies:
       typescript:
         specifier: ^5.6.0
