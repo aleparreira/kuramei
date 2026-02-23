@@ -55,7 +55,16 @@ async function processReminder(
   const { PK, SK, text, phoneNumber } = item;
 
   if (!phoneNumber) {
-    console.error('Reminder missing phoneNumber, skipping', { PK, SK });
+    console.error('Reminder missing phoneNumber, marking as failed', { PK, SK });
+    await ddb.send(
+      new UpdateCommand({
+        TableName: table,
+        Key: { PK, SK },
+        UpdateExpression: 'SET #status = :status, #ts = :ts',
+        ExpressionAttributeNames: { '#status': 'status', '#ts': 'failedAt' },
+        ExpressionAttributeValues: { ':status': 'failed', ':ts': new Date().toISOString() },
+      })
+    );
     return;
   }
 

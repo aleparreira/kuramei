@@ -27,7 +27,7 @@ export class WebhookStack extends Stack {
         bundleAwsSDK: false,
       },
       environment: {
-        AGENT_PROCESSOR_ARN: props.agentFn.functionArn,
+        AGENT_PROCESSOR_FUNCTION_NAME: props.agentFn.functionName,
         NODE_OPTIONS: '--enable-source-maps',
       },
     });

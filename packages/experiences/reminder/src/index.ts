@@ -161,8 +161,8 @@ const listRemindersTool = defineTool({
       const todayPrefix = getTodayPrefix();
       items = items.filter((r) => r.when.startsWith(todayPrefix));
     } else if (filter === 'upcoming') {
-      const todayPrefix = getTodayPrefix();
-      items = items.filter((r) => r.when >= todayPrefix);
+      const now = new Date().toISOString();
+      items = items.filter((r) => r.when >= now);
     }
 
     if (items.length === 0) {
