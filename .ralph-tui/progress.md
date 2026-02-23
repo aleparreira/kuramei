@@ -60,6 +60,19 @@ New packages follow this pattern:
   - `upcoming` filter needs `when >= todayPrefix` to exclude past pending items (DynamoDB `FilterExpression` only filters by `status`, not by date)
 ---
 
+## 2026-02-23 - US-006a
+- Created `packages/experiences/weather/` with `package.json`, `tsconfig.json`, `src/index.ts`
+- `get_weather` tool: fetches `https://wttr.in/{location}?format=j1`, extracts `current_condition[0]` (temp_C, FeelsLikeC, weatherDesc) and `weather[0]` (maxtempC, mintempC)
+- Returns `MessageSpec` with `🌤️ Tempo em {location}` on success; friendly PT-BR error MessageSpec on fetch failure or missing data
+- `weatherExperience.systemPromptSection`: instructs LLM to add contextual tip (e.g. "leve guarda-chuva!")
+- Updated `apps/agent-processor`: `package.json` dependency + `tsconfig.json` reference + `import { weatherExperience }` + added to `experiences` array
+- `pnpm build` → 16/16 packages, all checks passed (lint, typecheck, pre-commit hooks)
+- **Learnings:**
+  - wttr.in JSON field path is `current_condition[0]` (not `current`), `weather[0]` for today's forecast
+  - `packages/experiences/*` glob already in `pnpm-workspace.yaml` — no update needed
+  - Weather package has no DynamoDB dependency — lighter than reminder; `devDependencies` only needs `typescript`
+---
+
 ## 2026-02-23 - US-001
 - Created `packages/kv-client/` with `put`, `get`, `del` functions wrapping Cloudflare KV REST API
 - Removed inline `fetch` KV logic from `packages/tools/src/builtin/generate-ui.ts` and `packages/sdk/src/generate-ui-helper.ts`

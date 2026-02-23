@@ -113,11 +113,12 @@
         "pnpm typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "wttr.in returns JSON with nested structure. Handle gracefully if API is slow or returns unexpected shape.",
       "dependsOn": [
         "US-004"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-006b",
@@ -183,6 +184,6 @@
       "@kuramei/kv-client replaces inline KV fetch in both Lambda packages",
       "ui-worker READS KV via Wrangler native binding — does NOT use @kuramei/kv-client"
     ],
-    "updatedAt": "2026-02-23T22:17:54.130Z"
+    "updatedAt": "2026-02-23T22:19:45.640Z"
   }
 }

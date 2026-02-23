@@ -3,10 +3,10 @@
   "sessionId": "192e3f38-24c4-43f7-b2b4-1027bdb219be",
   "status": "running",
   "startedAt": "2026-02-23T22:04:58.860Z",
-  "updatedAt": "2026-02-23T22:17:54.133Z",
-  "currentIteration": 3,
+  "updatedAt": "2026-02-23T22:19:45.642Z",
+  "currentIteration": 4,
   "maxIterations": 10,
-  "tasksCompleted": 3,
+  "tasksCompleted": 4,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -35,8 +35,8 @@
       {
         "id": "US-003",
         "title": "list_reminders — visualizar lembretes pendentes",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-006a",
@@ -88,6 +88,16 @@
       "durationMs": 135140,
       "startedAt": "2026-02-23T22:13:42.031Z",
       "endedAt": "2026-02-23T22:15:57.171Z"
+    },
+    {
+      "iteration": 4,
+      "status": "completed",
+      "taskId": "US-003",
+      "taskTitle": "list_reminders — visualizar lembretes pendentes",
+      "taskCompleted": true,
+      "durationMs": 113459,
+      "startedAt": "2026-02-23T22:16:00.670Z",
+      "endedAt": "2026-02-23T22:17:54.129Z"
     }
   ],
   "skippedTaskIds": [],

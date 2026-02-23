@@ -41,6 +41,9 @@ importers:
       '@kuramei/experience-reminder':
         specifier: workspace:*
         version: link:../../packages/experiences/reminder
+      '@kuramei/experience-weather':
+        specifier: workspace:*
+        version: link:../../packages/experiences/weather
       '@kuramei/presence':
         specifier: workspace:*
         version: link:../../packages/presence
@@ -184,6 +187,22 @@ importers:
       '@aws-sdk/lib-dynamodb':
         specifier: ^3.0.0
         version: 3.995.0(@aws-sdk/client-dynamodb@3.995.0)
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/experiences/weather:
+    dependencies:
+      '@kuramei/sdk':
+        specifier: workspace:*
+        version: link:../../sdk
+      '@kuramei/tools':
+        specifier: workspace:*
+        version: link:../../tools
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
