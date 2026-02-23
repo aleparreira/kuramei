@@ -15,6 +15,7 @@
     "@kuramei/conversation": "workspace:*",
     "@kuramei/experience-navigation": "workspace:*",
     "@kuramei/experience-reminder": "workspace:*",
+    "@kuramei/experience-weather": "workspace:*",
     "@kuramei/presence": "workspace:*",
     "@kuramei/sdk": "workspace:*",
     "@kuramei/tools": "workspace:*",
