@@ -2,7 +2,7 @@
  * generate_ui tool
  *
  * Builds a UISpecToken, signs a JWT, writes the spec to Cloudflare KV
- * via the REST API, and returns a shareable link.
+ * via @kuramei/kv-client, and returns a shareable link.
  *
  * Note: the same logic is exposed as generateUI() in @kuramei/sdk for
  * consumers outside @kuramei/tools (e.g. create_reminder). A circular
@@ -13,6 +13,7 @@
 import { createHmac, createHash, randomUUID } from 'node:crypto';
 import { NavigationSpecSchema } from '@kuramei/ui-engine';
 import type { UISpec, UISpecToken } from '@kuramei/ui-engine';
+import * as kv from '@kuramei/kv-client';
 import { defineTool } from '../registry.js';
 
 function getEnv(key: string): string {
@@ -73,28 +74,7 @@ export const generateUiTool = defineTool({
     const jwtSecret = getEnv('KURAMEI_JWT_SECRET');
     const jwt = signJwt({ hash: tokenHash, exp: Math.floor(expiresAt / 1000) }, jwtSecret);
 
-    // Write spec to Cloudflare KV via REST API (Lambda and Cloudflare are separate clouds)
-    const accountId = getEnv('CLOUDFLARE_ACCOUNT_ID');
-    const namespaceId = getEnv('CLOUDFLARE_KV_NAMESPACE_ID');
-    const apiToken = getEnv('CLOUDFLARE_API_TOKEN');
-
-    const kvUrl =
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}` +
-      `/storage/kv/namespaces/${namespaceId}/values/${tokenHash}?expiration_ttl=3600`;
-
-    const response = await fetch(kvUrl, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(token),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Cloudflare KV write failed (${response.status}): ${text}`);
-    }
+    await kv.put(tokenHash, JSON.stringify(token), 3600);
 
     const baseUrl = getEnv('KURAMEI_BASE_URL');
     return { success: true, data: { url: `${baseUrl}/ui/${jwt}` } };
