@@ -153,20 +153,20 @@ npx wrangler secret put WHATSAPP_NUMBER
 npx wrangler deploy
 ```
 
-O Worker será publicado em `app.kuramei.app/*` (após configurar o DNS — ver passo 6).
+O Worker será publicado em `app.kuramei.ai/*` (após configurar o DNS — ver passo 6).
 
 ---
 
 ## Passo 6 — Configurar DNS na Cloudflare
 
-No painel da Cloudflare (kuramei.app):
+No painel da Cloudflare (kuramei.ai):
 
 1. Adicionar registro CNAME:
    - Nome: `app`
    - Destino: `workers.dev` (ou usar rota personalizada)
-2. Garantir que a zona `kuramei.app` está sob controle da Cloudflare
+2. Garantir que a zona `kuramei.ai` está sob controle da Cloudflare
 
-O wrangler.toml já tem a rota `app.kuramei.app/*` configurada.
+O wrangler.toml já tem a rota `app.kuramei.ai/*` configurada.
 
 ---
 

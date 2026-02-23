@@ -6,10 +6,10 @@ compatibility_date = "2025-01-01"
 binding = "KV"
 id = "PLACEHOLDER_KV_ID"
 
-# Routes: serve UI pages on app.kuramei.app
+# Routes: serve UI pages on app.kuramei.ai
 [[routes]]
-pattern = "app.kuramei.app/*"
-zone_name = "kuramei.app"
+pattern = "app.kuramei.ai/*"
+zone_name = "kuramei.ai"
 
 # Secrets (set via Wrangler CLI before deploy):
 #   wrangler secret put KURAMEI_JWT_SECRET
