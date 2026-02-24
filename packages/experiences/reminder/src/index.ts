@@ -273,7 +273,9 @@ const cancelReminderTool = defineTool({
     } catch (err: unknown) {
       // ConditionalCheckFailedException: reminder was already triggered/cancelled
       // between our Get and this Update (TOCTOU race). Treat as "not found".
-      const name = err instanceof Error ? err.constructor.name : '';
+      // Use err.name (not err.constructor.name) — more reliable across bundlers
+      // and matches the AWS SDK v3 canonical error name property.
+      const name = err instanceof Error ? err.name : '';
       if (name === 'ConditionalCheckFailedException') {
         const { url } = await generateUI(
           {
