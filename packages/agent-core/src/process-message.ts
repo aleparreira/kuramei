@@ -188,13 +188,15 @@ async function persistConversationTurn(
 ): Promise<void> {
   const ttl = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
   const nowIso = new Date().toISOString();
+  // SK uses numeric role prefix (#0# = user, #1# = assistant) so user always
+  // sorts before assistant within the same timestamp (lexicographic: '0' < '1').
   await Promise.all([
     ddb.send(
       new PutCommand({
         TableName: convTable,
         Item: {
           PK: `CONV#${userId}`,
-          SK: `MSG#${nowIso}#u#${randomUUID()}`,
+          SK: `MSG#${nowIso}#0#${randomUUID()}`,
           role: 'user',
           content: userMessage,
           ttl,
@@ -206,7 +208,7 @@ async function persistConversationTurn(
         TableName: convTable,
         Item: {
           PK: `CONV#${userId}`,
-          SK: `MSG#${nowIso}#a#${randomUUID()}`,
+          SK: `MSG#${nowIso}#1#${randomUUID()}`,
           role: 'assistant',
           content: assistantMessage,
           ttl,

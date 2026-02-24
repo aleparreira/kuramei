@@ -43,8 +43,8 @@ app.get('/health', (_req, res) => {
 app.post('/chat', async (req, res) => {
   const { userId, message } = req.body as { userId?: unknown; message?: unknown };
 
-  if (typeof userId !== 'string' || typeof message !== 'string') {
-    res.status(400).json({ error: 'userId and message must be strings' });
+  if (typeof userId !== 'string' || !userId.trim() || typeof message !== 'string' || !message.trim()) {
+    res.status(400).json({ error: 'userId and message must be non-empty strings' });
     return;
   }
 
