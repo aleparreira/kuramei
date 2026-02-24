@@ -21,6 +21,7 @@ function buildConfig(): AgentCoreConfig {
     openRouterApiKey: getEnv('OPENROUTER_API_KEY'),
     dynamoDbTable: getEnv('DYNAMODB_TABLE'),
     remindersTable: getEnv('REMINDERS_TABLE'),
+    conversationsTable: process.env['CONVERSATIONS_TABLE'] ?? 'kuramei-conversations',
     cloudflareAccountId: getEnv('CLOUDFLARE_ACCOUNT_ID'),
     cloudflareKvNamespaceId: getEnv('CLOUDFLARE_KV_NAMESPACE_ID'),
     cloudflareApiToken: getEnv('CLOUDFLARE_API_TOKEN'),

@@ -5,6 +5,7 @@
  * Used by both the Lambda (agent-processor) and the local simulator (simulator-api).
  */
 
+import { randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
@@ -46,6 +47,7 @@ export interface AgentCoreConfig {
   openRouterApiKey: string;
   dynamoDbTable: string;
   remindersTable: string;
+  conversationsTable: string;
   cloudflareAccountId: string;
   cloudflareKvNamespaceId: string;
   cloudflareApiToken: string;
@@ -136,6 +138,7 @@ export async function processMessage(
   process.env['OPENROUTER_API_KEY'] = config.openRouterApiKey;
   process.env['DYNAMODB_TABLE'] = config.dynamoDbTable;
   process.env['REMINDERS_TABLE'] = config.remindersTable;
+  process.env['CONVERSATIONS_TABLE'] = config.conversationsTable;
   process.env['CLOUDFLARE_ACCOUNT_ID'] = config.cloudflareAccountId;
   process.env['CLOUDFLARE_KV_NAMESPACE_ID'] = config.cloudflareKvNamespaceId;
   process.env['CLOUDFLARE_API_TOKEN'] = config.cloudflareApiToken;
@@ -164,6 +167,29 @@ export async function processMessage(
   const sessionManager = new DynamoDBSessionManager(ddb, { tableName }, commands);
   const session = await sessionManager.getOrCreate('kuramei', userId);
 
+  // Conversation history (sliding window, newest 20 messages from kuramei-conversations)
+  const convTable = config.conversationsTable;
+  const historyResult = await ddb.send(
+    new QueryCommand({
+      TableName: convTable,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': `CONV#${userId}`,
+        ':skPrefix': 'MSG#',
+      },
+      Limit: 20,
+      ScanIndexForward: false, // newest first
+    }),
+  );
+  // Reverse to get chronological order, then map to Message[]
+  const historyItems = (historyResult.Items ?? []).reverse();
+  session.context = historyItems.map((item) => ({
+    role: item['role'] as 'user' | 'assistant',
+    content: item['content'] as string,
+    // Extract ISO timestamp from SK: 'MSG#{ISO}#{uuid}' → split('#')[1]
+    timestamp: (item['SK'] as string).split('#')[1] ?? new Date().toISOString(),
+  }));
+
   // Agent
   const provider = new OpenRouterProvider({ apiKey: config.openRouterApiKey });
   const agentClient = new DefaultAgentClient({ provider });
@@ -182,6 +208,36 @@ export async function processMessage(
   await sessionManager.update(agentResult.session);
 
   const text = agentResult.content ?? '';
+
+  // Persist conversation turn to kuramei-conversations (TTL = 30 days)
+  const ttl = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+  const nowIso = new Date().toISOString();
+  await Promise.all([
+    ddb.send(
+      new PutCommand({
+        TableName: convTable,
+        Item: {
+          PK: `CONV#${userId}`,
+          SK: `MSG#${nowIso}#u#${randomUUID()}`,
+          role: 'user',
+          content: message,
+          ttl,
+        },
+      }),
+    ),
+    ddb.send(
+      new PutCommand({
+        TableName: convTable,
+        Item: {
+          PK: `CONV#${userId}`,
+          SK: `MSG#${nowIso}#a#${randomUUID()}`,
+          role: 'assistant',
+          content: text,
+          ttl,
+        },
+      }),
+    ),
+  ]);
 
   // Extract UI link from text if present (generate_ui embeds it inline)
   const urlMatch = /https?:\/\/\S+\/ui\/\S+/.exec(text);

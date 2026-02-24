@@ -40,6 +40,7 @@ export const handler = async (event: AgentProcessorEvent): Promise<void> => {
     openRouterApiKey: getEnv('OPENROUTER_API_KEY'),
     dynamoDbTable: getEnv('DYNAMODB_TABLE'),
     remindersTable: getEnv('REMINDERS_TABLE'),
+    conversationsTable: getEnv('CONVERSATIONS_TABLE'),
     cloudflareAccountId: getEnv('CLOUDFLARE_ACCOUNT_ID'),
     cloudflareKvNamespaceId: getEnv('CLOUDFLARE_KV_NAMESPACE_ID'),
     cloudflareApiToken: getEnv('CLOUDFLARE_API_TOKEN'),

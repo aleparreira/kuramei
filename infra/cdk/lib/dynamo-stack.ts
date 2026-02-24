@@ -5,6 +5,7 @@ import { Construct } from 'constructs';
 export class DynamoStack extends Stack {
   public readonly mainTable: Table;
   public readonly remindersTable: Table;
+  public readonly conversationsTable: Table;
 
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
@@ -26,6 +27,16 @@ export class DynamoStack extends Stack {
       sortKey: { name: 'SK', type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    // Conversations table: sliding window history, TTL 30 days
+    this.conversationsTable = new Table(this, 'ConversationsTable', {
+      tableName: 'kuramei-conversations',
+      partitionKey: { name: 'PK', type: AttributeType.STRING },
+      sortKey: { name: 'SK', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+      timeToLiveAttribute: 'ttl',
     });
 
     // GSI for querying reminders by status + scheduled time
