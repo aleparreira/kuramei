@@ -92,7 +92,7 @@ export interface OpenRouterProviderConfig {
 
 export const DEFAULT_OPENROUTER_CONFIG = {
   model: 'deepseek/deepseek-chat',
-  siteUrl: 'https://kuramei.app',
+  siteUrl: 'https://kuramei.ai',
   appTitle: 'Kuramei',
   defaultMaxTokens: 4096,
   defaultTemperature: 0.7,

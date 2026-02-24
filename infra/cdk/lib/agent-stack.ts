@@ -35,7 +35,7 @@ export class AgentStack extends Stack {
         // Runtime secrets loaded from AWS Secrets Manager — see runbook
         // OPENROUTER_API_KEY, KURAMEI_JWT_SECRET, WHATSAPP_ACCESS_TOKEN
         // are NOT set here; Lambda reads them from Secrets Manager at startup
-        KURAMEI_BASE_URL: 'https://app.kuramei.app',
+        KURAMEI_BASE_URL: 'https://app.kuramei.ai',
         NODE_OPTIONS: '--enable-source-maps',
       },
     });
