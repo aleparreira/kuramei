@@ -7,6 +7,8 @@ import { Construct } from 'constructs';
 interface AgentStackProps extends StackProps {
   mainTable: Table;
   remindersTable: Table;
+  conversationsTable: Table;
+  usersTable: Table;
 }
 
 export class AgentStack extends Stack {
@@ -32,6 +34,8 @@ export class AgentStack extends Stack {
       environment: {
         DYNAMODB_TABLE: props.mainTable.tableName,
         REMINDERS_TABLE: props.remindersTable.tableName,
+        CONVERSATIONS_TABLE: props.conversationsTable.tableName,
+        USERS_TABLE: props.usersTable.tableName,
         // Runtime secrets loaded from AWS Secrets Manager — see runbook
         // OPENROUTER_API_KEY, KURAMEI_JWT_SECRET, WHATSAPP_ACCESS_TOKEN
         // are NOT set here; Lambda reads them from Secrets Manager at startup
@@ -42,5 +46,7 @@ export class AgentStack extends Stack {
 
     props.mainTable.grantReadWriteData(this.processorFn);
     props.remindersTable.grantReadWriteData(this.processorFn);
+    props.conversationsTable.grantReadWriteData(this.processorFn);
+    props.usersTable.grantReadWriteData(this.processorFn);
   }
 }

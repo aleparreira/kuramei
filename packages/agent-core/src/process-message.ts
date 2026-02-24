@@ -173,10 +173,21 @@ async function activateUser(
   );
 }
 
-function capitalizeName(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return trimmed;
-  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+/**
+ * Sanitize and capitalize a user-provided name before persisting or injecting
+ * into the system prompt. Strips characters outside the allowed set to prevent
+ * prompt injection via the onboarding name field.
+ *
+ * Allowed: Unicode letters, spaces, hyphens, apostrophes (covers Brazilian
+ * Portuguese names with accents, hyphens, and compound names).
+ * Max length: 50 characters.
+ */
+function sanitizeName(raw: string): string {
+  const trimmed = raw.trim().slice(0, 50);
+  // Keep only letters (including accented), spaces, hyphens, apostrophes
+  const clean = trimmed.replace(/[^\p{L}\s'\-]/gu, '').trim();
+  if (!clean) return 'Usuário';
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
 }
 
 async function persistConversationTurn(
@@ -308,8 +319,8 @@ export async function processMessage(
       (lastAssistant['content'] as string).includes('Como posso te chamar');
 
     if (askedForName) {
-      // Current message is the user's name
-      const name = capitalizeName(message);
+      // Current message is the user's name — sanitize before persisting
+      const name = sanitizeName(message);
       await activateUser(userId, config.usersTable, name, ddb);
 
       const responseText =

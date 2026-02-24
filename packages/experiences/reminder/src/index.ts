@@ -250,21 +250,44 @@ const cancelReminderTool = defineTool({
 
     const reminderText = String(getResult.Item['text'] ?? '');
 
-    await client.send(
-      new UpdateCommand({
-        TableName: table,
-        Key: {
-          PK: `USER#${context.userId}`,
-          SK: `REMINDER#${reminderId}`,
-        },
-        UpdateExpression: 'SET #status = :cancelled, cancelledAt = :cancelledAt',
-        ExpressionAttributeNames: { '#status': 'status' },
-        ExpressionAttributeValues: {
-          ':cancelled': 'cancelled',
-          ':cancelledAt': new Date().toISOString(),
-        },
-      }),
-    );
+    try {
+      await client.send(
+        new UpdateCommand({
+          TableName: table,
+          Key: {
+            PK: `USER#${context.userId}`,
+            SK: `REMINDER#${reminderId}`,
+          },
+          UpdateExpression: 'SET #status = :cancelled, cancelledAt = :cancelledAt',
+          // ConditionExpression prevents cancelling a reminder that was already
+          // sent or cancelled between the Get check above and this Update (TOCTOU).
+          ConditionExpression: '#status = :pending',
+          ExpressionAttributeNames: { '#status': 'status' },
+          ExpressionAttributeValues: {
+            ':cancelled': 'cancelled',
+            ':cancelledAt': new Date().toISOString(),
+            ':pending': 'pending',
+          },
+        }),
+      );
+    } catch (err: unknown) {
+      // ConditionalCheckFailedException: reminder was already triggered/cancelled
+      // between our Get and this Update (TOCTOU race). Treat as "not found".
+      const name = err instanceof Error ? err.constructor.name : '';
+      if (name === 'ConditionalCheckFailedException') {
+        const { url } = await generateUI(
+          {
+            type: 'message',
+            title: 'Lembrete não encontrado',
+            body: 'Não encontrei esse lembrete. Use a lista de lembretes para ver os pendentes.',
+            actions: [],
+          },
+          { userId: context.userId },
+        );
+        return { success: true, data: { url } };
+      }
+      throw err;
+    }
 
     const { url } = await generateUI(
       {
