@@ -57,7 +57,24 @@ Entregues:
 
 Entregues: `@kuramei/kv-client`, CDK stacks (4), correção arquitetural (tool descriptions ricas), `list_reminders`, `experience-weather` (wttr.in), `experience-currency` (open.er-api.com), `reminder-scheduler` (EventBridge rate(1min) → WhatsApp).
 
-### Sprint 5 — A DEFINIR
+### Sprint 5 — CONCLUÍDO (`5b665b3`, PR #15)
+
+`pnpm build` → 21/21. Simulador local funcional. Agente com memória de conversa.
+
+Entregues:
+- **`@kuramei/agent-core`** — lógica extraída do handler Lambda; Lambda e simulator-api viram wrappers finos
+- **`apps/simulator` + `apps/simulator-api`** — web chat estilo WhatsApp, zero Meta API
+- **Histórico de conversa** — DynamoDB `kuramei-conversations`, sliding window 20 msgs, TTL 30 dias
+- **Onboarding** — welcome flow + captura de nome (`kuramei-users`), qualquer número novo é bem-vindo
+- **`cancel_reminder`** — tool com desambiguação via LLM, ConditionExpression anti-race
+
+Codex P0 (CDK): tabelas novas mal-wired no AgentStack (env vars + IAM). Fixados antes do merge.
+
+**Pós-deploy necessário:**
+- `cdk deploy DynamoStack` — criar `kuramei-conversations` + `kuramei-users`
+- `cdk deploy KurameiAgent` — atualizar env vars + IAM grants
+
+### Sprint 6 — A DEFINIR
 
 ---
 
