@@ -1,20 +1,25 @@
 {
-  "name": "@kuramei/agent-processor",
+  "name": "@kuramei/simulator-api",
   "version": "0.1.0",
-  "description": "Agent processing Lambda for Kuramei — resolves identity, manages session, calls AgentClient",
+  "description": "Local simulator API for Kuramei — Express wrapper around agent-core",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc --build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
+    "dev": "node --watch dist/index.js",
+    "start": "node dist/index.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@kuramei/agent-core": "workspace:*",
-    "@kuramei/whatsapp": "workspace:*"
+    "cors": "^2.8.5",
+    "express": "^4.21.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "typescript": "^5.6.0"
   }
 }
