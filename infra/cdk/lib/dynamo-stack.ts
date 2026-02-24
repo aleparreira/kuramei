@@ -5,6 +5,8 @@ import { Construct } from 'constructs';
 export class DynamoStack extends Stack {
   public readonly mainTable: Table;
   public readonly remindersTable: Table;
+  public readonly conversationsTable: Table;
+  public readonly usersTable: Table;
 
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
@@ -22,6 +24,25 @@ export class DynamoStack extends Stack {
     // Reminders table: scheduled follow-ups
     this.remindersTable = new Table(this, 'RemindersTable', {
       tableName: 'kuramei-reminders',
+      partitionKey: { name: 'PK', type: AttributeType.STRING },
+      sortKey: { name: 'SK', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    // Conversations table: sliding window history, TTL 30 days
+    this.conversationsTable = new Table(this, 'ConversationsTable', {
+      tableName: 'kuramei-conversations',
+      partitionKey: { name: 'PK', type: AttributeType.STRING },
+      sortKey: { name: 'SK', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
+      timeToLiveAttribute: 'ttl',
+    });
+
+    // Users table: onboarding state and profile
+    this.usersTable = new Table(this, 'UsersTable', {
+      tableName: 'kuramei-users',
       partitionKey: { name: 'PK', type: AttributeType.STRING },
       sortKey: { name: 'SK', type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,

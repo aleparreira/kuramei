@@ -9,7 +9,6 @@
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"],
   "references": [
-    { "path": "../../packages/agent-core" },
-    { "path": "../../packages/whatsapp" }
+    { "path": "../../packages/agent-core" }
   ]
 }

@@ -1,0 +1,36 @@
+{
+  "name": "@kuramei/agent-core",
+  "version": "0.1.0",
+  "description": "Core message processing logic for Kuramei — shared by Lambda and simulator",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kuramei/agent": "workspace:*",
+    "@kuramei/conversation": "workspace:*",
+    "@kuramei/experience-currency": "workspace:*",
+    "@kuramei/experience-navigation": "workspace:*",
+    "@kuramei/experience-reminder": "workspace:*",
+    "@kuramei/experience-weather": "workspace:*",
+    "@kuramei/presence": "workspace:*",
+    "@kuramei/sdk": "workspace:*",
+    "@kuramei/tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "typescript": "^5.6.0"
+  }
+}

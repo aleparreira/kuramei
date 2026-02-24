@@ -1,0 +1,136 @@
+{
+  "name": "Kuramei Sprint 5 — Simulador + Histórico + Onboarding + Cancel Lembrete",
+  "description": "De 1 usuário (Alexandre) para 10-20 usuários reais de Fase 0. Critério: Alexandre convida 5 amigos, eles mandam mensagem, o produto responde com contexto de conversas anteriores, conseguem criar e cancelar lembretes. Alexandre consegue testar qualquer fluxo localmente sem usar WhatsApp.",
+  "branchName": "feat/sprint5",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "WhatsApp Simulator + @kuramei/agent-core (extração do agent-processor)",
+      "description": "Extrair lógica de processamento do agent-processor para @kuramei/agent-core, criar simulator-api (Express) e simulator (Vite + React) para testar o fluxo localmente sem Meta API.",
+      "acceptanceCriteria": [
+        "Create packages/agent-core/ with package.json (name: @kuramei/agent-core, version: 0.1.0), tsconfig.json",
+        "Create packages/agent-core/src/process-message.ts exporting: processMessage(userId: string, message: string, config: AgentCoreConfig): Promise<AgentResponse>",
+        "AgentCoreConfig type: { openRouterApiKey: string, dynamoDbTable: string, remindersTable: string, cloudflareAccountId: string, cloudflareKvNamespaceId: string, cloudflareApiToken: string, kurameiJwtSecret: string, kurameiBaseUrl: string }",
+        "AgentResponse type: { text: string; uiLink?: string }",
+        "processMessage contains ALL logic currently in apps/agent-processor/src/index.ts: LLM call (OpenRouter/DeepSeek), ToolRegistry setup, ExperiencePackages loading, buildSystemPrompt, tool execution, response handling",
+        "Load all 4 ExperiencePackages inside processMessage: navigationExperience, reminderExperience, weatherExperience, currencyExperience",
+        "Update apps/agent-processor/src/index.ts to be a thin wrapper (~20-30 lines): import processMessage from @kuramei/agent-core, extract userId + message from Lambda event, call processMessage, call sendWhatsAppMessage with response.text",
+        "Create apps/simulator-api/ with package.json (@kuramei/simulator-api), tsconfig.json, src/index.ts",
+        "simulator-api: Express server on port 3001, CORS enabled, POST /chat body: { userId: string, message: string } → calls processMessage → returns { text: string, uiLink?: string }",
+        "simulator-api: GET /health → { ok: true }",
+        "Create apps/simulator/ with package.json (@kuramei/simulator), vite.config.ts (port 5173, proxy /api → localhost:3001), tsconfig.json, index.html, src/main.tsx, src/App.tsx",
+        "Simulator UI: chat window WhatsApp style. Header: fundo verde #075E54, texto branco 'Kuramei ✦', ícone de robô ou similar",
+        "Simulator UI: fundo geral cinza claro #ECE5DD",
+        "Simulator UI: mensagens do usuário — bubble direita, fundo #DCF8C6, texto escuro",
+        "Simulator UI: mensagens do agente — bubble esquerda, fundo branco, texto escuro",
+        "Simulator UI: timestamps HH:mm em cada bubble (bottom-right para user, bottom-left para agente)",
+        "Simulator UI: typing indicator (três pontos animados) enquanto aguarda resposta",
+        "Simulator UI: links no texto da resposta renderizados como <a> clicável azul, target=_blank",
+        "Simulator UI: input bar na base — campo de texto + botão enviar; Enter envia a mensagem",
+        "Simulator UI: scroll automático para a última mensagem",
+        "Simulator UI: max-width 420px, centralizado horizontalmente na tela, height 100vh",
+        "userId fixo: 'simulator-dev' — sem autenticação no simulador",
+        "Add packages/agent-core to pnpm-workspace.yaml (verify glob packages/* covers it, otherwise add explicitly)",
+        "Add apps/simulator, apps/simulator-api to pnpm-workspace.yaml if not already covered",
+        "Add Turborepo dev task in turbo.json for simulator: runs simulator-api and simulator together",
+        "pnpm build passes (all packages including agent-core, simulator-api, simulator)",
+        "pnpm typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "CRITICAL ARCH: agent-processor becomes a thin Lambda wrapper. All business logic moves to @kuramei/agent-core. simulator-api is another thin wrapper (Express). Both call the same processMessage function — guarantees production parity. Do NOT duplicate logic between Lambda and simulator. The simulator is a dev tool only — never deployed.",
+      "dependsOn": []
+    },
+    {
+      "id": "US-002",
+      "title": "Histórico de conversa — DynamoDB sliding window 20 msgs, TTL 30 dias",
+      "description": "O agente precisa lembrar do contexto da conversa atual. Sem isso, parece amnésico — cada mensagem é respondida como se fosse a primeira.",
+      "acceptanceCriteria": [
+        "Create (or verify/update) table kuramei-conversations in infra/cdk/lib/dynamo-stack.ts: PAY_PER_REQUEST, PK=PK (String), SK=SK (String), TTL attribute name: 'ttl'",
+        "Add CONVERSATIONS_TABLE env var to .env.example and .env.production.example",
+        "In packages/agent-core/src/process-message.ts, before calling the LLM:",
+        "  - Load conversation history from DynamoDB: query PK='CONV#{userId}', SK begins_with 'MSG#', Limit=20, ScanIndexForward=false (newest first), then reverse result to get chronological order",
+        "  - Each DynamoDB item: PK: 'CONV#{userId}', SK: 'MSG#{ISO_timestamp}#{uuid}', role: 'user' | 'assistant', content: string, ttl: Math.floor(Date.now()/1000) + (30*24*60*60)",
+        "Inject history in LLM messages array: [...history.map(h => ({ role: h.role, content: h.content })), { role: 'user', content: currentMessage }]",
+        "After receiving LLM response, persist 2 items in DynamoDB (user message + assistant response) with TTL = now + 30 days. Use timestamp+uuid for SK to ensure uniqueness.",
+        "Add CONVERSATIONS_TABLE to AgentCoreConfig type in packages/agent-core/src/process-message.ts",
+        "Update apps/agent-processor/src/index.ts to pass CONVERSATIONS_TABLE from process.env to AgentCoreConfig",
+        "Update apps/simulator-api/src/index.ts to pass CONVERSATIONS_TABLE from process.env to AgentCoreConfig (use 'kuramei-conversations' as default for dev)",
+        "pnpm build passes",
+        "pnpm typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "The @kuramei/conversation package (ported from dikta) may already have DynamoDBSessionManager — check if it can be used or if it needs adaptation. If it needs major changes, implement directly in agent-core to avoid breaking existing package. Goal: inject up to 20 messages (10 exchanges) as context before current message. TTL is a DynamoDB epoch seconds number (not ISO string).",
+      "dependsOn": [
+        "US-001"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Onboarding de novos usuários — boas-vindas + coleta de nome",
+      "description": "Quando um número novo manda a primeira mensagem, o Kuramei apresenta-se, coleta o nome e dá boas-vindas. A partir daí, usa o nome do usuário nas respostas.",
+      "acceptanceCriteria": [
+        "Create (or verify/update) table kuramei-users in infra/cdk/lib/dynamo-stack.ts: PAY_PER_REQUEST, PK=PK (String), SK='PROFILE' (hardcoded in code)",
+        "User item schema in DynamoDB: PK: 'USER#{userId}', SK: 'PROFILE', name: string | null, registeredAt: ISO string, status: 'onboarding' | 'active'",
+        "Add USERS_TABLE env var to .env.example and .env.production.example",
+        "In packages/agent-core/src/process-message.ts, at the start of processMessage (BEFORE LLM call):",
+        "  1. Load or create user from kuramei-users table using getOrCreateUser(userId, usersTable): checks if item exists; if not, creates with status='onboarding', name=null, registeredAt=now",
+        "  2. If user.status === 'onboarding' AND user.name === null: return immediately with hardcoded response 'Olá! 👋 Sou o Kuramei, seu assistente pessoal via WhatsApp. Como posso te chamar?' — do NOT call LLM",
+        "  3. If user.status === 'onboarding' AND user.name === null AND this is NOT first ever message: check if previous message was the welcome prompt by checking DynamoDB conversation history (last assistant message contains 'Como posso te chamar'). If yes: treat currentMessage as the user's name. Trim whitespace, capitalize first letter. Update DynamoDB: name=trimmedName, status='active'. Return 'Oi, {name}! Fico feliz em te conhecer 😊 Posso te ajudar com lembretes, navegação, clima, cotação de moeda, e muito mais. O que você precisa?'",
+        "  4. If user.status === 'active': continue to LLM call with name injected in system prompt: append to base system prompt: 'O nome do usuário é {user.name}. Use o nome dele(a) nas respostas quando natural.'",
+        "Add USERS_TABLE to AgentCoreConfig type",
+        "Update apps/agent-processor/src/index.ts to pass USERS_TABLE from process.env",
+        "Update apps/simulator-api/src/index.ts to pass USERS_TABLE (default 'kuramei-users' for dev)",
+        "Onboarding flow MUST be hardcoded/deterministic — do NOT pass to LLM. Reason: guarantee consistent onboarding experience.",
+        "pnpm build passes",
+        "pnpm typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "The onboarding name detection logic: after welcome message is sent, next user message IS the name. Use conversation history (loaded in US-002) to detect this: if last assistant message contains 'Como posso te chamar', current message = name. Store name trimmed + first letter capitalized. Whitelist: NOT needed in Sprint 5 — Fase 0 is private by number obscurity.",
+      "dependsOn": [
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Cancelar lembrete — cancel_reminder tool + UX de desambiguação",
+      "description": "Completar o lifecycle de lembretes. Usuários vão inevitavelmente querer cancelar — sem isso o product experience está incompleto.",
+      "acceptanceCriteria": [
+        "Add tool cancel_reminder to packages/experiences/reminder/src/index.ts",
+        "cancel_reminder Zod input schema: { reminderId: z.string().min(1) }",
+        "cancel_reminder handler: update DynamoDB item PK='USER#{userId}', SK='REMINDER#{reminderId}' — set status='cancelled', add cancelledAt=new Date().toISOString(). Use UpdateExpression.",
+        "On success: call generateUI() with MessageSpec: { type: 'message', title: 'Lembrete cancelado ✅', body: '{reminder.text} — removido', actions: [] }",
+        "On not found (item doesn't exist or status already != 'pending'): call generateUI() with MessageSpec: { type: 'message', title: 'Lembrete não encontrado', body: 'Não encontrei esse lembrete. Use a lista de lembretes para ver os pendentes.', actions: [] }",
+        "cancel_reminder tool description: 'Cancels a pending reminder by ID. Use when the user wants to delete, remove, or cancel a specific reminder. IMPORTANT: requires the exact reminder ID — call list_reminders first if you do not have the ID yet. If the user refers to a reminder by description (e.g. \"the medication reminder\"), use list_reminders to find the matching ID before cancelling.'",
+        "Update reminderExperience.systemPromptSection to include cancel contract: 'Ao cancelar lembrete: se não souber o ID exato, chamar list_reminders primeiro para obter os IDs. Se houver múltiplos lembretes que podem corresponder à descrição do usuário, mostrar a lista e pedir confirmação antes de cancelar. Nunca cancelar sem ter o ID correto.'",
+        "Update reminderExperience.tools to include cancel_reminder alongside create_reminder and list_reminders",
+        "pnpm build passes",
+        "pnpm typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "UX flow: (1) user says 'cancel medication reminder' → agent calls list_reminders internally → if exactly one matches: cancel directly with inline confirmation → if 2+ match: generate ListSpec with candidates + ask user to confirm → user picks → agent uses conversation history (US-002) to resolve reference → cancels. The disambiguation logic is in the LLM (via tool description + system prompt contract) — not hardcoded in the tool handler.",
+      "dependsOn": [
+        "US-003"
+      ]
+    }
+  ],
+  "metadata": {
+    "sprint": 5,
+    "createdAt": "2026-02-23",
+    "createdBy": "forja",
+    "briefingSource": "/Users/xande/.openclaw/workspace-arcos/memory/briefing-forja-sprint5.md",
+    "simulatorSpec": "/Users/xande/.openclaw/workspace-arcos/memory/sprint5-us-simulator.md",
+    "keyDecisions": [
+      "US-001: @kuramei/agent-core extracts ALL business logic from agent-processor; Lambda and simulator-api become thin wrappers",
+      "US-002: conversation history sliding window of 20 messages (10 exchanges), TTL 30 days DynamoDB epoch",
+      "US-003: onboarding is hardcoded/deterministic — never delegated to LLM",
+      "US-003: no whitelist in Sprint 5 — Fase 0 private by number obscurity",
+      "US-004: disambiguation logic lives in LLM (via tool descriptions + systemPromptSection), not in handler",
+      "Simulator is dev tool only — never deployed, userId fixed 'simulator-dev'",
+      "DynamoDB tables needed: kuramei-conversations (new), kuramei-users (new)"
+    ]
+  }
+}

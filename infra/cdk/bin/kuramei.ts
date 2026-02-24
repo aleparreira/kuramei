@@ -17,6 +17,8 @@ const agent = new AgentStack(app, 'KurameiAgent', {
   env,
   mainTable: dynamo.mainTable,
   remindersTable: dynamo.remindersTable,
+  conversationsTable: dynamo.conversationsTable,
+  usersTable: dynamo.usersTable,
 });
 
 new WebhookStack(app, 'KurameiWebhook', {
