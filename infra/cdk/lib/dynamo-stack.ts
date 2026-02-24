@@ -6,6 +6,7 @@ export class DynamoStack extends Stack {
   public readonly mainTable: Table;
   public readonly remindersTable: Table;
   public readonly conversationsTable: Table;
+  public readonly usersTable: Table;
 
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
@@ -37,6 +38,15 @@ export class DynamoStack extends Stack {
       billingMode: BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN,
       timeToLiveAttribute: 'ttl',
+    });
+
+    // Users table: onboarding state and profile
+    this.usersTable = new Table(this, 'UsersTable', {
+      tableName: 'kuramei-users',
+      partitionKey: { name: 'PK', type: AttributeType.STRING },
+      sortKey: { name: 'SK', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.RETAIN,
     });
 
     // GSI for querying reminders by status + scheduled time

@@ -48,6 +48,7 @@ export interface AgentCoreConfig {
   dynamoDbTable: string;
   remindersTable: string;
   conversationsTable: string;
+  usersTable: string;
   cloudflareAccountId: string;
   cloudflareKvNamespaceId: string;
   cloudflareApiToken: string;
@@ -116,6 +117,106 @@ const experiences = [navigationExperience, reminderExperience, weatherExperience
 const SYSTEM_PROMPT = buildSystemPrompt(SYSTEM_PROMPT_BASE, experiences);
 
 // ============================================================================
+// User profile helpers
+// ============================================================================
+
+interface UserRecord {
+  PK: string;
+  SK: string;
+  name: string | null;
+  status: 'onboarding' | 'active';
+  registeredAt: string;
+}
+
+async function getOrCreateUser(
+  userId: string,
+  usersTable: string,
+  ddb: DynamoDBDocumentClient,
+): Promise<UserRecord> {
+  const pk = `USER#${userId}`;
+  const sk = 'PROFILE';
+
+  const result = await ddb.send(
+    new GetCommand({ TableName: usersTable, Key: { PK: pk, SK: sk } }),
+  );
+
+  if (result.Item) {
+    return result.Item as UserRecord;
+  }
+
+  const newUser: UserRecord = {
+    PK: pk,
+    SK: sk,
+    name: null,
+    status: 'onboarding',
+    registeredAt: new Date().toISOString(),
+  };
+
+  await ddb.send(new PutCommand({ TableName: usersTable, Item: newUser }));
+  return newUser;
+}
+
+async function activateUser(
+  userId: string,
+  usersTable: string,
+  name: string,
+  ddb: DynamoDBDocumentClient,
+): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: usersTable,
+      Key: { PK: `USER#${userId}`, SK: 'PROFILE' },
+      UpdateExpression: 'SET #name = :name, #status = :status',
+      ExpressionAttributeNames: { '#name': 'name', '#status': 'status' },
+      ExpressionAttributeValues: { ':name': name, ':status': 'active' },
+    }),
+  );
+}
+
+function capitalizeName(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+async function persistConversationTurn(
+  userId: string,
+  convTable: string,
+  userMessage: string,
+  assistantMessage: string,
+  ddb: DynamoDBDocumentClient,
+): Promise<void> {
+  const ttl = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+  const nowIso = new Date().toISOString();
+  await Promise.all([
+    ddb.send(
+      new PutCommand({
+        TableName: convTable,
+        Item: {
+          PK: `CONV#${userId}`,
+          SK: `MSG#${nowIso}#u#${randomUUID()}`,
+          role: 'user',
+          content: userMessage,
+          ttl,
+        },
+      }),
+    ),
+    ddb.send(
+      new PutCommand({
+        TableName: convTable,
+        Item: {
+          PK: `CONV#${userId}`,
+          SK: `MSG#${nowIso}#a#${randomUUID()}`,
+          role: 'assistant',
+          content: assistantMessage,
+          ttl,
+        },
+      }),
+    ),
+  ]);
+}
+
+// ============================================================================
 // processMessage
 // ============================================================================
 
@@ -139,6 +240,7 @@ export async function processMessage(
   process.env['DYNAMODB_TABLE'] = config.dynamoDbTable;
   process.env['REMINDERS_TABLE'] = config.remindersTable;
   process.env['CONVERSATIONS_TABLE'] = config.conversationsTable;
+  process.env['USERS_TABLE'] = config.usersTable;
   process.env['CLOUDFLARE_ACCOUNT_ID'] = config.cloudflareAccountId;
   process.env['CLOUDFLARE_KV_NAMESPACE_ID'] = config.cloudflareKvNamespaceId;
   process.env['CLOUDFLARE_API_TOKEN'] = config.cloudflareApiToken;
@@ -190,18 +292,61 @@ export async function processMessage(
     timestamp: (item['SK'] as string).split('#')[1] ?? new Date().toISOString(),
   }));
 
+  // ── Onboarding flow (deterministic, no LLM) ──────────────────────────────
+  const user = await getOrCreateUser(userId, config.usersTable, ddb);
+
+  if (user.status === 'onboarding') {
+    // Check if the last assistant message was the name-request prompt
+    const lastAssistant = historyItems
+      .filter((item) => item['role'] === 'assistant')
+      .at(-1);
+
+    const askedForName =
+      lastAssistant !== undefined &&
+      (lastAssistant['content'] as string).includes('Como posso te chamar');
+
+    if (askedForName) {
+      // Current message is the user's name
+      const name = capitalizeName(message);
+      await activateUser(userId, config.usersTable, name, ddb);
+
+      const responseText =
+        `Oi, ${name}! Fico feliz em te conhecer 😊 ` +
+        'Posso te ajudar com lembretes, navegação, clima, cotação de moeda, e muito mais. ' +
+        'O que você precisa?';
+
+      await persistConversationTurn(userId, convTable, message, responseText, ddb);
+      return { text: responseText };
+    }
+
+    // First contact — return welcome prompt
+    const responseText =
+      'Olá! 👋 Sou o Kuramei, seu assistente pessoal via WhatsApp. Como posso te chamar?';
+
+    await persistConversationTurn(userId, convTable, message, responseText, ddb);
+    return { text: responseText };
+  }
+  // ── End onboarding ────────────────────────────────────────────────────────
+
   // Agent
   const provider = new OpenRouterProvider({ apiKey: config.openRouterApiKey });
   const agentClient = new DefaultAgentClient({ provider });
 
   const tools: Tool[] = experiences.flatMap((exp) => exp.tools.map(adaptTool));
 
+  // Inject user name into system prompt when known
+  const systemPrompt =
+    user.name !== null
+      ? SYSTEM_PROMPT +
+        `\nO nome do usuário é ${user.name}. Use o nome dele(a) nas respostas quando natural.`
+      : SYSTEM_PROMPT;
+
   const correlationId = `proc-${Date.now()}`;
   const agentResult = await agentClient.process({
     session,
     message,
     tools,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt,
     correlationId,
   });
 
@@ -210,37 +355,11 @@ export async function processMessage(
   const text = agentResult.content ?? '';
 
   // Persist conversation turn to kuramei-conversations (TTL = 30 days)
-  const ttl = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
-  const nowIso = new Date().toISOString();
-  await Promise.all([
-    ddb.send(
-      new PutCommand({
-        TableName: convTable,
-        Item: {
-          PK: `CONV#${userId}`,
-          SK: `MSG#${nowIso}#u#${randomUUID()}`,
-          role: 'user',
-          content: message,
-          ttl,
-        },
-      }),
-    ),
-    ddb.send(
-      new PutCommand({
-        TableName: convTable,
-        Item: {
-          PK: `CONV#${userId}`,
-          SK: `MSG#${nowIso}#a#${randomUUID()}`,
-          role: 'assistant',
-          content: text,
-          ttl,
-        },
-      }),
-    ),
-  ]);
+  await persistConversationTurn(userId, convTable, message, text, ddb);
 
   // Extract UI link from text if present (generate_ui embeds it inline)
-  const urlMatch = /https?:\/\/\S+\/ui\/\S+/.exec(text);
+  const uiPattern = /https?:\/\/\S+\/ui\/\S+/;
+  const urlMatch = uiPattern.exec(text);
   const result: AgentResponse = { text };
   if (urlMatch) result.uiLink = urlMatch[0];
 
