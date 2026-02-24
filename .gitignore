@@ -53,3 +53,5 @@ cdk.out/
 
 # Wrangler local secrets
 .dev.vars
+.vercel
+.env*.local

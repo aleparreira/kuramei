@@ -1,6 +1,0 @@
-{
-  "buildCommand": "pnpm --filter @kuramei/ui-app... build",
-  "outputDirectory": "apps/ui-app/.next",
-  "installCommand": "pnpm install",
-  "framework": "nextjs"
-}

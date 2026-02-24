@@ -39,7 +39,7 @@ export class AgentStack extends Stack {
         // Runtime secrets loaded from AWS Secrets Manager — see runbook
         // LLM_API_KEY, KURAMEI_JWT_SECRET, WHATSAPP_ACCESS_TOKEN
         // are NOT set here; Lambda reads them from Secrets Manager at startup
-        KURAMEI_BASE_URL: 'https://kuramei.vercel.app',
+        KURAMEI_BASE_URL: 'https://ui-app-flax.vercel.app',
         NODE_OPTIONS: '--enable-source-maps',
       },
     });
