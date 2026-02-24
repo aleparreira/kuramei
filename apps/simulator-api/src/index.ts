@@ -18,14 +18,11 @@ function getEnv(key: string): string {
 
 function buildConfig(): AgentCoreConfig {
   return {
-    openRouterApiKey: getEnv('OPENROUTER_API_KEY'),
+    llmApiKey: getEnv('LLM_API_KEY'),
     dynamoDbTable: getEnv('DYNAMODB_TABLE'),
     remindersTable: getEnv('REMINDERS_TABLE'),
     conversationsTable: process.env['CONVERSATIONS_TABLE'] ?? 'kuramei-conversations',
     usersTable: process.env['USERS_TABLE'] ?? 'kuramei-users',
-    cloudflareAccountId: getEnv('CLOUDFLARE_ACCOUNT_ID'),
-    cloudflareKvNamespaceId: getEnv('CLOUDFLARE_KV_NAMESPACE_ID'),
-    cloudflareApiToken: getEnv('CLOUDFLARE_API_TOKEN'),
     kurameiJwtSecret: getEnv('KURAMEI_JWT_SECRET'),
     kurameiBaseUrl: getEnv('KURAMEI_BASE_URL'),
   };

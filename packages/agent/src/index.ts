@@ -36,7 +36,7 @@ export type { AnthropicClient, ClaudeProviderConfig } from './llm/claude-provide
 export { ClaudeProvider, DEFAULT_CLAUDE_CONFIG } from './llm/claude-provider.js';
 
 export type { OpenRouterProviderConfig } from './llm/openrouter-provider.js';
-export { OpenRouterProvider, DEFAULT_OPENROUTER_CONFIG } from './llm/openrouter-provider.js';
+export { OpenRouterProvider, DEFAULT_OPENROUTER_CONFIG, DEEPSEEK_CONFIG } from './llm/openrouter-provider.js';
 
 export { LLMProviderError, LLMRateLimitError, LLMTimeoutError } from './llm/provider.js';
 

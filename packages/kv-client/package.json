@@ -2,7 +2,7 @@
   "name": "@kuramei/kv-client",
   "version": "0.1.0",
   "private": true,
-  "description": "Cloudflare KV REST API client for Lambda-side code",
+  "description": "DynamoDB-based KV client for Lambda-side code (UI spec storage)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,6 +18,10 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

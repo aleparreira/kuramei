@@ -17,6 +17,7 @@ import type {
 import { LLMProviderError, LLMRateLimitError, LLMTimeoutError } from './provider.js';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 // ============================================================================
 // OpenAI-compatible API types
@@ -76,11 +77,13 @@ interface OpenAIResponse {
 export interface OpenRouterProviderConfig {
   /** API key */
   apiKey: string;
-  /** Primary model (default: deepseek/deepseek-chat) */
+  /** Base URL for the OpenAI-compatible API (default: OpenRouter) */
+  baseUrl?: string;
+  /** Primary model */
   model?: string;
-  /** Site URL for HTTP-Referer header */
+  /** Site URL for HTTP-Referer header (OpenRouter-specific, optional) */
   siteUrl?: string;
-  /** App name for X-Title header */
+  /** App name for X-Title header (OpenRouter-specific, optional) */
   appTitle?: string;
   /** Default max tokens (default: 4096) */
   defaultMaxTokens?: number;
@@ -91,9 +94,19 @@ export interface OpenRouterProviderConfig {
 }
 
 export const DEFAULT_OPENROUTER_CONFIG = {
+  baseUrl: OPENROUTER_BASE_URL,
   model: 'deepseek/deepseek-chat',
   siteUrl: 'https://kuramei.ai',
   appTitle: 'Kuramei',
+  defaultMaxTokens: 4096,
+  defaultTemperature: 0.7,
+  timeoutMs: 60000,
+} as const;
+
+/** Preset for DeepSeek API direct (no OpenRouter) */
+export const DEEPSEEK_CONFIG = {
+  baseUrl: DEEPSEEK_BASE_URL,
+  model: 'deepseek-chat',
   defaultMaxTokens: 4096,
   defaultTemperature: 0.7,
   timeoutMs: 60000,
@@ -205,14 +218,17 @@ export class OpenRouterProvider implements LLMProvider {
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs);
 
     try {
-      const response = await fetch(OPENROUTER_BASE_URL, {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${this.config.apiKey}`,
+        'Content-Type': 'application/json',
+      };
+      // OpenRouter-specific headers (omit for other providers like DeepSeek)
+      if (this.config.siteUrl) headers['HTTP-Referer'] = this.config.siteUrl;
+      if (this.config.appTitle) headers['X-Title'] = this.config.appTitle;
+
+      const response = await fetch(this.config.baseUrl, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': this.config.siteUrl,
-          'X-Title': this.config.appTitle,
-        },
+        headers,
         body: JSON.stringify(body),
         signal: controller.signal,
       });

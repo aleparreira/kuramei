@@ -30,7 +30,7 @@ import {
   DynamoDBChannelBindingStore,
   IdentityResolver,
 } from '@kuramei/presence';
-import { DefaultAgentClient, OpenRouterProvider } from '@kuramei/agent';
+import { DefaultAgentClient, OpenRouterProvider, DEEPSEEK_CONFIG } from '@kuramei/agent';
 import type { Tool, ToolContext as AgentToolContext } from '@kuramei/agent';
 import type { ToolDefinition, ToolContext as SDKToolContext } from '@kuramei/tools';
 import { buildSystemPrompt } from '@kuramei/sdk';
@@ -44,14 +44,12 @@ import { weatherExperience } from '@kuramei/experience-weather';
 // ============================================================================
 
 export interface AgentCoreConfig {
-  openRouterApiKey: string;
+  /** DeepSeek API key (or any OpenAI-compatible provider key) */
+  llmApiKey: string;
   dynamoDbTable: string;
   remindersTable: string;
   conversationsTable: string;
   usersTable: string;
-  cloudflareAccountId: string;
-  cloudflareKvNamespaceId: string;
-  cloudflareApiToken: string;
   kurameiJwtSecret: string;
   kurameiBaseUrl: string;
 }
@@ -249,14 +247,11 @@ export async function processMessage(
   config: AgentCoreConfig,
 ): Promise<AgentResponse> {
   // Apply config to env vars so downstream packages pick them up.
-  process.env['OPENROUTER_API_KEY'] = config.openRouterApiKey;
+  process.env['LLM_API_KEY'] = config.llmApiKey;
   process.env['DYNAMODB_TABLE'] = config.dynamoDbTable;
   process.env['REMINDERS_TABLE'] = config.remindersTable;
   process.env['CONVERSATIONS_TABLE'] = config.conversationsTable;
   process.env['USERS_TABLE'] = config.usersTable;
-  process.env['CLOUDFLARE_ACCOUNT_ID'] = config.cloudflareAccountId;
-  process.env['CLOUDFLARE_KV_NAMESPACE_ID'] = config.cloudflareKvNamespaceId;
-  process.env['CLOUDFLARE_API_TOKEN'] = config.cloudflareApiToken;
   process.env['KURAMEI_JWT_SECRET'] = config.kurameiJwtSecret;
   process.env['KURAMEI_BASE_URL'] = config.kurameiBaseUrl;
 
@@ -342,7 +337,7 @@ export async function processMessage(
   // ── End onboarding ────────────────────────────────────────────────────────
 
   // Agent
-  const provider = new OpenRouterProvider({ apiKey: config.openRouterApiKey });
+  const provider = new OpenRouterProvider({ ...DEEPSEEK_CONFIG, apiKey: config.llmApiKey });
   const agentClient = new DefaultAgentClient({ provider });
 
   const tools: Tool[] = experiences.flatMap((exp) => exp.tools.map(adaptTool));

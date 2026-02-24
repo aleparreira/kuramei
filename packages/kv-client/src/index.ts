@@ -1,12 +1,20 @@
 /**
  * @kuramei/kv-client
  *
- * Cloudflare KV REST API client for Lambda-side code.
- * Config via env vars: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_KV_NAMESPACE_ID, CLOUDFLARE_API_TOKEN
+ * DynamoDB-based KV store for UI spec storage.
  *
- * NOTE: ui-worker reads from KV via the native Wrangler KV binding (env.KV.get)
- * and does NOT use this client.
+ * Replaces the previous Cloudflare KV REST API implementation.
+ * Uses the existing DYNAMODB_TABLE (kuramei-main) with a UI_SPEC# key prefix.
+ *
+ * Schema:
+ *   PK: UI_SPEC#<key>
+ *   SK: #DATA
+ *   v:   string (the stored value)
+ *   ttl: number (Unix timestamp for DynamoDB TTL auto-expiry)
  */
+
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
 function getEnv(key: string): string {
   const value = process.env[key];
@@ -14,65 +22,64 @@ function getEnv(key: string): string {
   return value;
 }
 
-function baseUrl(): string {
-  const accountId = getEnv('CLOUDFLARE_ACCOUNT_ID');
-  const namespaceId = getEnv('CLOUDFLARE_KV_NAMESPACE_ID');
-  return `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values`;
+function getClient(): DynamoDBDocumentClient {
+  const client = new DynamoDBClient({ region: process.env['AWS_REGION'] ?? 'sa-east-1' });
+  return DynamoDBDocumentClient.from(client);
+}
+
+function tableName(): string {
+  return getEnv('DYNAMODB_TABLE');
+}
+
+function pk(key: string): string {
+  return `UI_SPEC#${key}`;
 }
 
 export async function put(key: string, value: string, ttlSeconds: number): Promise<void> {
-  const apiToken = getEnv('CLOUDFLARE_API_TOKEN');
-  const url = `${baseUrl()}/${encodeURIComponent(key)}?expiration_ttl=${ttlSeconds}`;
+  const client = getClient();
+  const ttl = Math.floor(Date.now() / 1000) + ttlSeconds;
 
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: value,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Cloudflare KV write failed (${response.status}): ${text}`);
-  }
+  await client.send(
+    new PutCommand({
+      TableName: tableName(),
+      Item: {
+        PK: pk(key),
+        SK: '#DATA',
+        v: value,
+        ttl,
+      },
+    })
+  );
 }
 
 export async function get(key: string): Promise<string | null> {
-  const apiToken = getEnv('CLOUDFLARE_API_TOKEN');
-  const url = `${baseUrl()}/${encodeURIComponent(key)}`;
+  const client = getClient();
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-    },
-  });
+  const result = await client.send(
+    new GetCommand({
+      TableName: tableName(),
+      Key: { PK: pk(key), SK: '#DATA' },
+    })
+  );
 
-  if (response.status === 404) return null;
+  if (!result.Item) return null;
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Cloudflare KV read failed (${response.status}): ${text}`);
+  // Check if TTL has expired (DynamoDB may not delete instantly)
+  const ttl = result.Item['ttl'] as number | undefined;
+  if (ttl !== undefined && ttl < Math.floor(Date.now() / 1000)) {
+    return null;
   }
 
-  return response.text();
+  return (result.Item['v'] as string) ?? null;
 }
 
 export async function del(key: string): Promise<void> {
-  const apiToken = getEnv('CLOUDFLARE_API_TOKEN');
-  const url = `${baseUrl()}/${encodeURIComponent(key)}`;
+  const client = getClient();
 
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Cloudflare KV delete failed (${response.status}): ${text}`);
-  }
+  await client.send(
+    new DeleteCommand({
+      TableName: tableName(),
+      Key: { PK: pk(key), SK: '#DATA' },
+    })
+  );
 }
