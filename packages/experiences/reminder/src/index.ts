@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import { generateUI } from '@kuramei/sdk';
@@ -69,6 +69,7 @@ const createReminderTool = defineTool({
 });
 
 interface ReminderItem {
+  SK: string;
   text: string;
   when: string;
 }
@@ -170,7 +171,7 @@ const listRemindersTool = defineTool({
         { type: 'message', title: 'Nenhum lembrete pendente', body: 'Você está em dia! ✅', actions: [] },
         { userId: context.userId },
       );
-      return { success: true, data: { url } };
+      return { success: true, data: { url, reminders: [] } };
     }
 
     const { url } = await generateUI(
@@ -182,15 +183,110 @@ const listRemindersTool = defineTool({
       { userId: context.userId },
     );
 
+    const reminders = items.map((r) => ({
+      id: r.SK.replace('REMINDER#', ''),
+      text: r.text,
+      when: r.when,
+    }));
+
+    return { success: true, data: { url, reminders } };
+  },
+});
+
+const CancelReminderInputSchema = z.object({
+  reminderId: z.string().min(1),
+});
+
+const cancelReminderTool = defineTool({
+  name: 'cancel_reminder',
+  description:
+    'Cancels a pending reminder by ID. Use when the user wants to delete, remove, or cancel a specific reminder. ' +
+    'IMPORTANT: requires the exact reminder ID — call list_reminders first if you do not have the ID yet. ' +
+    'If the user refers to a reminder by description (e.g. "the medication reminder"), use list_reminders to find the matching ID before cancelling.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      reminderId: { type: 'string', description: 'The exact reminder ID to cancel' },
+    },
+    required: ['reminderId'],
+  },
+  handler: async (input, context) => {
+    const parsed = CancelReminderInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: `Invalid input: ${parsed.error.message}` };
+    }
+
+    const { reminderId } = parsed.data;
+
+    const table = process.env['REMINDERS_TABLE'];
+    if (!table) {
+      throw new Error('Missing required environment variable: REMINDERS_TABLE');
+    }
+
+    const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+    const getResult = await client.send(
+      new GetCommand({
+        TableName: table,
+        Key: {
+          PK: `USER#${context.userId}`,
+          SK: `REMINDER#${reminderId}`,
+        },
+      }),
+    );
+
+    if (!getResult.Item || getResult.Item['status'] !== 'pending') {
+      const { url } = await generateUI(
+        {
+          type: 'message',
+          title: 'Lembrete não encontrado',
+          body: 'Não encontrei esse lembrete. Use a lista de lembretes para ver os pendentes.',
+          actions: [],
+        },
+        { userId: context.userId },
+      );
+      return { success: true, data: { url } };
+    }
+
+    const reminderText = String(getResult.Item['text'] ?? '');
+
+    await client.send(
+      new UpdateCommand({
+        TableName: table,
+        Key: {
+          PK: `USER#${context.userId}`,
+          SK: `REMINDER#${reminderId}`,
+        },
+        UpdateExpression: 'SET #status = :cancelled, cancelledAt = :cancelledAt',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':cancelled': 'cancelled',
+          ':cancelledAt': new Date().toISOString(),
+        },
+      }),
+    );
+
+    const { url } = await generateUI(
+      {
+        type: 'message',
+        title: 'Lembrete cancelado ✅',
+        body: `${reminderText} — removido`,
+        actions: [],
+      },
+      { userId: context.userId },
+    );
+
     return { success: true, data: { url } };
   },
 });
 
 export const reminderExperience: ExperiencePackage = {
   name: 'reminder',
-  description: 'Creates and lists reminders for the user, returning visual page links',
+  description: 'Creates, lists, and cancels reminders for the user, returning visual page links',
   systemPromptSection: `## Lembretes
 
-Se when não especificado, perguntar em uma única mensagem antes de chamar create_reminder. Nunca criar sem when. Não listar reminders logo após criar um no mesmo turn — aguardar próxima interação do usuário.`,
-  tools: [createReminderTool, listRemindersTool],
+Se when não especificado, perguntar em uma única mensagem antes de chamar create_reminder. Nunca criar sem when. Não listar reminders logo após criar um no mesmo turn — aguardar próxima interação do usuário.
+
+Ao cancelar lembrete: se não souber o ID exato, chamar list_reminders primeiro para obter os IDs. Se houver múltiplos lembretes que podem corresponder à descrição do usuário, mostrar a lista e pedir confirmação antes de cancelar. Nunca cancelar sem ter o ID correto.`,
+  tools: [createReminderTool, listRemindersTool, cancelReminderTool],
 };
