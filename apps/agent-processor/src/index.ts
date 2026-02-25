@@ -37,7 +37,7 @@ export const handler = async (event: AgentProcessorEvent): Promise<void> => {
   const { from, phoneNumberId, messageText } = event;
 
   const config: AgentCoreConfig = {
-    llmApiKey: getEnv('LLM_API_KEY'),
+    llmApiKey: process.env['LLM_API_KEY'] ?? getEnv('OPENROUTER_API_KEY'),
     dynamoDbTable: getEnv('DYNAMODB_TABLE'),
     remindersTable: getEnv('REMINDERS_TABLE'),
     conversationsTable: getEnv('CONVERSATIONS_TABLE'),

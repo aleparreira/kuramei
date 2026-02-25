@@ -18,11 +18,10 @@ export function verifyJWT(token: string, secret: string): JWTPayload | null {
   const [headerB64, payloadB64, signatureB64] = parts as [string, string, string];
 
   const signingInput = `${headerB64}.${payloadB64}`;
-  const expected = createHmac('sha256', secret).update(signingInput).digest('base64url');
 
-  // Constant-time comparison
-  const expectedBuf = Buffer.from(expected);
-  const actualBuf = Buffer.from(signatureB64.replace(/-/g, '+').replace(/_/g, '/'));
+  // Decode both sides to raw bytes before comparing — avoid charset encoding mismatch
+  const expectedBuf = createHmac('sha256', secret).update(signingInput).digest();
+  const actualBuf = Buffer.from(signatureB64, 'base64url');
   if (expectedBuf.length !== actualBuf.length) return null;
   if (!timingSafeEqual(expectedBuf, actualBuf)) return null;
 

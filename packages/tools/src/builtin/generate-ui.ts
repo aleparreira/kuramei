@@ -1,8 +1,8 @@
 /**
  * generate_ui tool
  *
- * Builds a UISpecToken, signs a JWT, writes the spec to Cloudflare KV
- * via @kuramei/kv-client, and returns a shareable link.
+ * Builds a UISpecToken, signs a JWT, writes the spec to DynamoDB
+ * via @kuramei/kv-client (UI_SPEC# prefix in kuramei-main table), and returns a shareable link.
  *
  * Note: the same logic is exposed as generateUI() in @kuramei/sdk for
  * consumers outside @kuramei/tools (e.g. create_reminder). A circular

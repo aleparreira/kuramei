@@ -18,7 +18,7 @@ function getEnv(key: string): string {
 
 function buildConfig(): AgentCoreConfig {
   return {
-    llmApiKey: getEnv('LLM_API_KEY'),
+    llmApiKey: process.env['LLM_API_KEY'] ?? getEnv('OPENROUTER_API_KEY'),
     dynamoDbTable: getEnv('DYNAMODB_TABLE'),
     remindersTable: getEnv('REMINDERS_TABLE'),
     conversationsTable: process.env['CONVERSATIONS_TABLE'] ?? 'kuramei-conversations',

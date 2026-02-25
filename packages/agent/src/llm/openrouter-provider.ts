@@ -103,10 +103,14 @@ export const DEFAULT_OPENROUTER_CONFIG = {
   timeoutMs: 60000,
 } as const;
 
-/** Preset for DeepSeek API direct (no OpenRouter) */
+/** Preset for DeepSeek API direct (no OpenRouter).
+ * Explicitly sets siteUrl/appTitle to empty strings to suppress
+ * OpenRouter-specific HTTP-Referer and X-Title headers. */
 export const DEEPSEEK_CONFIG = {
   baseUrl: DEEPSEEK_BASE_URL,
   model: 'deepseek-chat',
+  siteUrl: '',
+  appTitle: '',
   defaultMaxTokens: 4096,
   defaultTemperature: 0.7,
   timeoutMs: 60000,
