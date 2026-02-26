@@ -1,10 +1,10 @@
 ---
 ticket_id: NOW-2
-status: now
-gate: G0
+status: done
+gate: G3
 owner: codex
 branch: feat/factory-operationalization
-updated_at: 2026-02-26T10:40:00Z
+updated_at: 2026-02-26T17:27:00Z
 forum_thread_id: "1476528283653771377"
 ---
 
@@ -23,22 +23,22 @@ Provar a operação real da fábrica executando 1 ticket pequeno ponta-a-ponta c
 - Executar múltiplos tickets em paralelo.
 
 ## DoR
-- [ ] Ticket escolhido e escopo fechado
-- [ ] Critério de pronto definido
-- [ ] Risco e rollback definidos
+- [x] Ticket escolhido e escopo fechado
+- [x] Critério de pronto definido
+- [x] Risco e rollback definidos
 
 ## Tarefas
-- [ ] Gate 0: preflight
-- [ ] Gate 1: qualidade (build/test/typecheck)
-- [ ] Gate 2: validação funcional
-- [ ] Gate 3: docs + decisão
-- [ ] Registro completo no canal oficial (#forja)
+- [x] Gate 0: preflight
+- [x] Gate 1: qualidade (build/test/typecheck)
+- [x] Gate 2: validação funcional
+- [x] Gate 3: docs + decisão
+- [x] Registro completo no canal oficial (#forja)
 
 ## DoD
-- [ ] G0→G3 com status registrado
-- [ ] Decisão final explícita
-- [ ] Risco + rollback documentados
-- [ ] Encerramento do ciclo sem abrir novo ticket antes
+- [x] G0→G3 com status registrado
+- [x] Decisão final explícita
+- [x] Risco + rollback documentados
+- [x] Encerramento do ciclo sem abrir novo ticket antes
 
 ## Risco
 Pular gate por pressa e perder confiabilidade.
