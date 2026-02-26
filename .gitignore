@@ -55,3 +55,6 @@ cdk.out/
 .dev.vars
 .vercel
 .env*.local
+
+# never commit OpenClaw runtime config snapshots (may contain secrets)
+docs/operacao/baseline/openclaw-config-*.json
