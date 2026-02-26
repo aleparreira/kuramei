@@ -17,6 +17,16 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 
 import { DynamoDBSessionManager } from '@kuramei/conversation';
+import {
+  detectFeedback,
+  persistFeedback,
+  setPendingFeedback,
+  getPendingFeedback,
+  clearPendingFeedback,
+  FEEDBACK_PROMPT_NEGATIVE,
+  FEEDBACK_ACK_POSITIVE,
+  FEEDBACK_ACK_NEGATIVE,
+} from './feedback.js';
 import type {
   ChannelBindingCommandFactories,
   GetCommandInput as PresenceGetCommandInput,
@@ -57,6 +67,8 @@ export interface AgentCoreConfig {
 export interface AgentResponse {
   text: string;
   uiLink?: string;
+  /** Correlation ID for this turn — used to link feedback to a specific response. */
+  feedbackKey?: string;
 }
 
 // ============================================================================
@@ -336,6 +348,50 @@ export async function processMessage(
   }
   // ── End onboarding ────────────────────────────────────────────────────────
 
+  // ── Feedback handling (active users only) ─────────────────────────────────
+  const feedbackSignal = detectFeedback(message);
+
+  if (feedbackSignal !== null) {
+    if (feedbackSignal.type === 'positive') {
+      // Log positive feedback and ack
+      const turnId = await getPendingFeedback(userId, tableName, ddb);
+      await persistFeedback(
+        userId,
+        turnId ?? 'unknown',
+        'positive',
+        tableName,
+        ddb,
+      );
+      return { text: FEEDBACK_ACK_POSITIVE };
+    }
+
+    if (feedbackSignal.type === 'negative_prompt') {
+      // Store pending state; user will send option next
+      const pendingTurnId = randomUUID();
+      await setPendingFeedback(userId, pendingTurnId, tableName, ddb);
+      return { text: FEEDBACK_PROMPT_NEGATIVE };
+    }
+
+    if (feedbackSignal.type === 'negative_detail') {
+      const pendingTurnId = await getPendingFeedback(userId, tableName, ddb);
+      if (pendingTurnId !== null) {
+        await persistFeedback(
+          userId,
+          pendingTurnId,
+          'negative',
+          tableName,
+          ddb,
+          feedbackSignal.reason,
+          feedbackSignal.note,
+        );
+        await clearPendingFeedback(userId, tableName, ddb);
+        return { text: FEEDBACK_ACK_NEGATIVE };
+      }
+      // No pending feedback — fall through to agent
+    }
+  }
+  // ── End feedback ──────────────────────────────────────────────────────────
+
   // Agent
   const provider = new OpenRouterProvider({ ...DEEPSEEK_CONFIG, apiKey: config.llmApiKey });
   const agentClient = new DefaultAgentClient({ provider });
@@ -349,13 +405,13 @@ export async function processMessage(
         `\nO nome do usuário é ${user.name}. Use o nome dele(a) nas respostas quando natural.`
       : SYSTEM_PROMPT;
 
-  const correlationId = `proc-${Date.now()}`;
+  const turnId = randomUUID();
   const agentResult = await agentClient.process({
     session,
     message,
     tools,
     systemPrompt,
-    correlationId,
+    correlationId: turnId,
   });
 
   await sessionManager.update(agentResult.session);
@@ -365,10 +421,13 @@ export async function processMessage(
   // Persist conversation turn to kuramei-conversations (TTL = 30 days)
   await persistConversationTurn(userId, convTable, message, text, ddb);
 
+  // Store turn ID as pending feedback reference (allows 👍/👎 to link back to this response)
+  await setPendingFeedback(userId, turnId, tableName, ddb);
+
   // Extract UI link from text if present (generate_ui embeds it inline)
   const uiPattern = /https?:\/\/\S+\/ui\/\S+/;
   const urlMatch = uiPattern.exec(text);
-  const result: AgentResponse = { text };
+  const result: AgentResponse = { text, feedbackKey: turnId };
   if (urlMatch) result.uiLink = urlMatch[0];
 
   return result;
