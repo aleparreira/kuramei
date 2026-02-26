@@ -1,9 +1,10 @@
 ---
 ticket_id: NOW-3
-status: now
-gate: G0
+status: done
+gate: G3
 owner: codex
-updated_at: 2026-02-26T10:40:00Z
+branch: feat/factory-operationalization
+updated_at: 2026-02-26T16:42:00Z
 forum_thread_id: "1476528286514544750"
 ---
 
@@ -28,14 +29,14 @@ Estabelecer baseline semanal com dados objetivos para controlar saúde da fábri
 - [x] Job de report periódico configurado
 
 ## Tarefas
-- [ ] Validar chegada de pelo menos 1 report automático no canal
-- [ ] Registrar baseline inicial em docs/fabrica
-- [ ] Confirmar checklist de intervenção humana em uso diário
+- [x] Validar chegada de pelo menos 1 report automático no canal
+- [x] Registrar baseline inicial em docs/fabrica
+- [x] Confirmar checklist de intervenção humana em uso diário
 
 ## DoD
-- [ ] Report periódico confirmado no canal
-- [ ] Baseline documentada
-- [ ] Processo diário de intervenção humana ativo
+- [x] Report periódico confirmado no canal
+- [x] Baseline documentada
+- [x] Processo diário de intervenção humana ativo
 
 ## Risco
 Report virar ruído sem decisão acionável.

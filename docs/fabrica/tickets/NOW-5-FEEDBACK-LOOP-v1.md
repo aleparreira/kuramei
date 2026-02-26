@@ -3,6 +3,7 @@ ticket_id: NOW-5
 status: now
 gate: G0
 owner: forja
+branch: feat/factory-operationalization
 updated_at: 2026-02-26T10:30:00Z
 forum_thread_id: "1476582850273874143"
 ---

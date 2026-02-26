@@ -3,6 +3,7 @@ ticket_id: NOW-1
 status: done
 gate: G3
 owner: codex
+branch: feat/factory-operationalization
 updated_at: 2026-02-26T14:18:00Z
 forum_thread_id: "1476528280856170669"
 ---

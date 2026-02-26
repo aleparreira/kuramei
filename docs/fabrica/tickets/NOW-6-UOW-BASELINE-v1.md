@@ -1,9 +1,10 @@
 ---
 ticket_id: NOW-6
-status: now
-gate: G0
+status: done
+gate: G3
 owner: codex
-updated_at: 2026-02-26T10:30:00Z
+branch: feat/factory-operationalization
+updated_at: 2026-02-26T16:42:00Z
 forum_thread_id: "1476582853931175936"
 ---
 
