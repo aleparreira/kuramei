@@ -421,9 +421,6 @@ export async function processMessage(
   // Persist conversation turn to kuramei-conversations (TTL = 30 days)
   await persistConversationTurn(userId, convTable, message, text, ddb);
 
-  // Store turn ID as pending feedback reference (allows 👍/👎 to link back to this response)
-  await setPendingFeedback(userId, turnId, tableName, ddb);
-
   // Extract UI link from text if present (generate_ui embeds it inline)
   const uiPattern = /https?:\/\/\S+\/ui\/\S+/;
   const urlMatch = uiPattern.exec(text);
