@@ -63,3 +63,21 @@ Remover a chamada `detectFeedback` no início da seção de usuário ativo em `p
 - [x] fluxo negativo com 3 opções + texto opcional
 - [x] persistência mínima para métricas
 - [x] doc de uso/consulta atualizado
+
+---
+
+## Hotfix — Challenger Arcos (2026-02-26)
+
+**Problema:** falso positivo — `setPendingFeedback` era chamado após **toda** resposta normal do agente, causando captura indevida de mensagens `1/2/3` como feedback negativo mesmo sem 👎 prévio.
+
+**Root cause:** linha `await setPendingFeedback(userId, turnId, tableName, ddb)` após o bloco do agente em `process-message.ts`.
+
+**Fix:** remoção da chamada. `setPendingFeedback` agora é chamado **exclusivamente** no handler `negative_prompt` (👎 explícito).
+
+**Comportamento pós-fix:**
+- `1/2/3` sem 👎 prévio → `getPendingFeedback` retorna null → fall-through para o agente → resposta normal ✅
+- `👎` → seta pending (5min TTL) → prompt 3 opções ✅
+- `1/2/3` após 👎 → encontra pending → persiste feedback negativo → limpa pending ✅
+
+**Commit:** `7ad0abd`  
+**Gates:** Build 22/22 ✅ | Typecheck 36/36 ✅ | Lint 11/11 ✅
