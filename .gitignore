@@ -59,3 +59,4 @@ cdk.out/
 # never commit OpenClaw runtime config snapshots (may contain secrets)
 docs/operacao/baseline/openclaw-config-*.json
 docs/fabrica/.forum-sync-state.json
+docs/fabrica/.heartbeat_backoffice_last.json
