@@ -1,10 +1,10 @@
 ---
 ticket_id: NEXT-5
-status: next
-gate: G0
+status: now
+gate: G1
 owner: forja
 branch: feat/factory-operationalization
-updated_at: 2026-02-27T21:42:00Z
+updated_at: 2026-02-28T01:05:00Z
 forum_thread_id: ""
 ---
 
