@@ -8,7 +8,8 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "smoke-test": "tsx scripts/smoke-test.ts",
-    "simulator": "turbo run dev --filter=@kuramei/simulator --filter=@kuramei/simulator-api"
+    "simulator": "turbo run dev --filter=@kuramei/simulator --filter=@kuramei/simulator-api",
+    "uow-gate": "tsx scripts/uow-gate.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
