@@ -45,3 +45,8 @@ Nenhuma feature entra em NOW sem passar pelo Challenger Review.
 
 ## Guardrail
 Se o parecer for **HOLD/NO-GO**, só pode avançar com decisão explícita do Xande registrada no canal oficial da fábrica.
+
+## Regra adicional — Arquitetura antes de implementação (anti-race)
+- Nenhum ticket dependente pode iniciar implementação sem **ARQ-GO** explícito do ticket de arquitetura upstream.
+- Pré-trabalho permitido: somente leitura/contexto e preparação sem alterar código de execução.
+- Violação da regra => ticket retorna para `G0` e precisa de revalidação Challenger.
